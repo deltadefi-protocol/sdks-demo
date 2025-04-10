@@ -1,4 +1,8 @@
 import { ApiClient } from "@deltadefi-protocol/typescript-sdk";
+import {
+  GetMarketDepthRequest,
+  GetMarketPriceRequest,
+} from "@deltadefi-protocol/typescript-sdk";
 
 /**
  * Fetch market depth using the provided API client.
@@ -6,7 +10,7 @@ import { ApiClient } from "@deltadefi-protocol/typescript-sdk";
  */
 export async function fetchMarketDepth(apiClient: ApiClient) {
   // Prepare the request data
-  const marketDepthRequest: { symbol: "ADAUSDX" } = {
+  const marketDepthRequest: GetMarketDepthRequest = {
     symbol: "ADAUSDX", // Replace with the trading symbol you want to query
   };
 
@@ -25,7 +29,7 @@ export async function fetchMarketDepth(apiClient: ApiClient) {
  */
 export async function fetchMarketPrice(apiClient: ApiClient) {
   // Prepare the request data
-  const marketPriceRequest: { symbol: "ADAUSDX" } = {
+  const marketPriceRequest: GetMarketPriceRequest = {
     symbol: "ADAUSDX", // Replace with the trading symbol you want to query
   };
 
