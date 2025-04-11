@@ -1,0 +1,38 @@
+{
+  "name": "@deltadefi-protocol/typescript-sdk-sample-testing",
+  "description": "The Typescript SDK Testing Sample for interacting with DeltaDeFi protocol",
+  "version": "0.1.0",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "author": {
+    "name": "anson",
+    "email": "anson.chui@deltadefi.io"
+  },
+  "homepage": "https://www.deltadefi.io/",
+  "files": [
+    "dist/**"
+  ],
+  "keywords": [
+    "DeltaDeFi",
+    "Cardano",
+    "DeFi",
+    "Typescript",
+    "SDK"
+  ],
+  "scripts": {
+    "clean": "rm -rf dist && rm -rf node_modules",
+    "build": "tsup src/index.ts --format esm,cjs --dts",
+    "start": "npm run build && node dist/index.cjs"
+  },
+  "dependencies": {
+    "@deltadefi-protocol/typescript-sdk": "^0.3.20",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20.4.10",
+    "tsup": "^8.0.2",
+    "typescript": "^5.1.6"
+  }
+}
