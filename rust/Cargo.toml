@@ -1,0 +1,13 @@
+[package]
+name = "deltadefi-sdk-demo"
+version = "0.0.1"
+edition = "2021"
+
+[[bin]] 
+name = "deltadefi-sdk-demo"
+path = "main.rs"
+
+[dependencies]
+tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
+deltadefi = { version = "0.0.1", path = "../../rust-sdk"}
+dotenv = "0.15.0"
