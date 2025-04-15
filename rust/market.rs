@@ -8,16 +8,12 @@ pub async fn market() {
     let deltadefi = DeltaDeFi::new(api_key, Stage::Staging, None);
 
     // Get market depth
-    match deltadefi.market.get_depth("ADAUSDX").await {
-        Ok(depth) => println!("\nGet depth:\n{:?}", depth),
-        Err(err) => eprintln!("Error getting market depth: {:?}", err),
-    }
+    let res = deltadefi.market.get_depth("ADAUSDX").await.unwrap();
+    println!("\nGet market depth:\n{:?}", res);
 
     // Get market price
-    match deltadefi.market.get_market_price("ADAUSDX").await {
-        Ok(price) => println!("\nGet market price:\n{:?}", price),
-        Err(err) => eprintln!("Error getting market price: {:?}", err),
-    }
+    let res = deltadefi.market.get_market_price("ADAUSDX").await.unwrap();
+    println!("\nGet market price:\n{:?}", res);
 
     // Get aggregated price
     let start = 1_732_982_400; // Replace with your desired start timestamp
@@ -25,12 +21,10 @@ pub async fn market() {
         .duration_since(std::time::UNIX_EPOCH)
         .expect("Time went backwards")
         .as_secs() as u64;
-    match deltadefi
+    let res = deltadefi
         .market
         .get_aggregated_price("ADAUSDX", "1M", start, end)
         .await
-    {
-        Ok(aggregated_price) => println!("\nGet aggregated price:\n{:?}", aggregated_price),
-        Err(err) => eprintln!("Error getting aggregated price: {:?}", err),
-    }
+        .unwrap();
+    println!("\nGet aggregated price:\n{:?}", res);
 }

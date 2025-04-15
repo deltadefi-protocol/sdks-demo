@@ -10,4 +10,5 @@ path = "main.rs"
 [dependencies]
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
 deltadefi = { version = "0.0.1", path = "../../rust-sdk"}
+whisky = { version = "1.0.1", path = "../../../../sidan/whisky/packages/whisky"}
 dotenv = "0.15.0"
