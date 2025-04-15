@@ -6,6 +6,8 @@ use whisky::{decrypt_with_cipher, Wallet};
 pub async fn order() {
     dotenv().ok();
     let api_key = env::var("DELTADEFI_API_KEY").expect("DELTADEFI_API_KEY must be set");
+    let encryption_passcode =
+        env::var("ENCRYPTION_PASSCODE").expect("ENCRYPTION_PASSCODE must be set");
 
     // Initialize DeltaDeFi client and wallet
     let deltadefi = DeltaDeFi::new(api_key, Stage::Staging, None);
@@ -13,7 +15,7 @@ pub async fn order() {
     let res = deltadefi.accounts.get_operation_key().await.unwrap();
     let encrypted_operation_key = res.encrypted_operation_key;
     let decrypted_operation_key =
-        decrypt_with_cipher(&encrypted_operation_key, "password").unwrap();
+        decrypt_with_cipher(&encrypted_operation_key, &encryption_passcode).unwrap();
     let wallet = Wallet::new(whisky::WalletType::Root(decrypted_operation_key), 0, 0);
 
     // Build place order transaction
