@@ -48,6 +48,9 @@ pub async fn order() {
     println!("\nSubmit place order transaction:");
     println!("Order submitted successfully: {:?}", res);
 
+    // Sleep for 1s - make sure order in on book
+    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
     let res = deltadefi
         .order
         .build_cancel_order_transaction(&order_id)
