@@ -54,10 +54,6 @@ async function retrieveEncryptedOperationKey(): Promise<string> {
     const fetchOperationKeyResponse = await fetchEncryptedOperationKey(
       apiClient
     );
-    console.log(
-      "fetchEncryptedOperationKey Response:",
-      fetchOperationKeyResponse
-    );
 
     if (!fetchOperationKeyResponse) {
       console.error(
@@ -69,7 +65,6 @@ async function retrieveEncryptedOperationKey(): Promise<string> {
     }
 
     console.log("Successfully retrieved encrypted_operation_key.");
-    console.log("Encrypted Operation Key:", fetchOperationKeyResponse);
     return fetchOperationKeyResponse;
   } catch (error) {
     console.error("Error during retrieving encrypted_operation_key:", error);
@@ -95,7 +90,6 @@ async function decryptOperationKey(
     key: sdk_operation_key_encryption_password,
   });
 
-  console.log("Decrypted Operation Key:", decryptedOperationKey);
   return decryptedOperationKey;
 }
 
