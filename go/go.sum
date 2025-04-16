@@ -1,0 +1,4 @@
+github.com/lpernett/godotenv v0.0.0-20230527005122-0de1d4c5ef5e h1:6b4YTtccT1y/3eSsDCVhB6boPPCh5bQwP1Pa863yH28=
+github.com/lpernett/godotenv v0.0.0-20230527005122-0de1d4c5ef5e/go.mod h1:K+inF/XYdmRn4sSP3IU4EM3KcOdGVJUJqZPmrQSxjGo=
+github.com/sidan-lab/rum v0.1.5 h1:1RHXqG79NyRBPPoLbE9gyIOPfWE77j+HCkcEvWOY57g=
+github.com/sidan-lab/rum v0.1.5/go.mod h1:S7Uwe0G+9RdNrYLNp3LHwJzD4Q5jIaXEr04JT0hpzvM=
