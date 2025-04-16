@@ -1,3 +1,5 @@
+github.com/deltadefi-protocol/go-sdk v0.0.1 h1:YKBZlAUm+jB2XMlFOGxXaPeTeS4+Jn0MqIHSzai7LEc=
+github.com/deltadefi-protocol/go-sdk v0.0.1/go.mod h1:3q0ok6vj6E2ZpsK+A83VNcr/Crxspk5ybL1xs0d2A9E=
 github.com/lpernett/godotenv v0.0.0-20230527005122-0de1d4c5ef5e h1:6b4YTtccT1y/3eSsDCVhB6boPPCh5bQwP1Pa863yH28=
 github.com/lpernett/godotenv v0.0.0-20230527005122-0de1d4c5ef5e/go.mod h1:K+inF/XYdmRn4sSP3IU4EM3KcOdGVJUJqZPmrQSxjGo=
 github.com/sidan-lab/rum v0.1.5 h1:1RHXqG79NyRBPPoLbE9gyIOPfWE77j+HCkcEvWOY57g=
