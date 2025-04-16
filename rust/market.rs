@@ -5,7 +5,7 @@ use std::env;
 pub async fn market() {
     dotenv().ok();
     let api_key = env::var("DELTADEFI_API_KEY").expect("DELTADEFI_API_KEY must be set");
-    let deltadefi = DeltaDeFi::new(api_key, Stage::Staging, None);
+    let deltadefi = DeltaDeFi::new(api_key, Stage::Staging, None, None);
 
     // Get market depth
     let res = deltadefi.market.get_depth("ADAUSDX").await.unwrap();
