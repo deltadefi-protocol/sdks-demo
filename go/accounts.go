@@ -21,26 +21,26 @@ func accounts() {
 	}
 	client := deltadefi.NewDeltaDeFi(config)
 
-	accountBalanceRes, _ := client.Account.GetAccountBalance()
+	accountBalanceRes, _ := client.Accounts.GetAccountBalance()
 	fmt.Println("\nAccount Balance:")
 	for _, record := range *accountBalanceRes {
 		fmt.Println(record)
 	}
 
 	fmt.Println("\nDeposit Records:")
-	depositRecordRes, _ := client.Account.GetDepositRecords()
+	depositRecordRes, _ := client.Accounts.GetDepositRecords()
 	for _, record := range *depositRecordRes {
 		fmt.Println(record)
 	}
 
 	fmt.Println("\nWithdrawal Records:")
-	withdrawalRecordRes, _ := client.Account.GetWithdrawalRecords()
+	withdrawalRecordRes, _ := client.Accounts.GetWithdrawalRecords()
 	for _, record := range *withdrawalRecordRes {
 		fmt.Println(record)
 	}
 
 	fmt.Println("\nOrder Records:")
-	orderRecordsRes, _ := client.Account.GetOrderRecords()
+	orderRecordsRes, _ := client.Accounts.GetOrderRecords()
 	fmt.Printf("Order Records: %v\n", orderRecordsRes)
 	for _, record := range orderRecordsRes.Orders {
 		fmt.Println(record)
