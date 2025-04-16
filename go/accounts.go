@@ -8,9 +8,9 @@ import (
 	"github.com/lpernett/godotenv"
 )
 
-func main() {
-	accounts()
-}
+// func main() {
+// 	accounts()
+// }
 
 func accounts() {
 	godotenv.Load()
