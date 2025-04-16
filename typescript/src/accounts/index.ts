@@ -8,16 +8,6 @@ export async function fetchEncryptedOperationKey(apiClient: ApiClient) {
   // Call the signIn method
   const getOperationKeyResponse = await apiClient.accounts.getOperationKey();
 
-  // Log the encrypted operation key
-  console.log(
-    "Encrypted Operation Key:",
-    getOperationKeyResponse.encrypted_operation_key
-  );
-  console.log(
-    "Operation Key Hash:",
-    getOperationKeyResponse.operation_key_hash
-  );
-
   return getOperationKeyResponse.encrypted_operation_key;
 }
 
