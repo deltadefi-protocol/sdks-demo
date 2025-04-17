@@ -9,7 +9,7 @@ pub async fn order() {
         env::var("ENCRYPTION_PASSCODE").expect("ENCRYPTION_PASSCODE must be set");
 
     // Initialize DeltaDeFi client and wallet
-    let mut deltadefi = DeltaDeFi::new(api_key, Stage::Staging, None, None);
+    let mut deltadefi = DeltaDeFi::new(api_key, Stage::Staging, None);
     deltadefi
         .load_operation_key(&encryption_passcode)
         .await

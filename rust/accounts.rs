@@ -5,7 +5,7 @@ use std::env;
 pub async fn accounts() {
     dotenv().ok();
     let api_key = env::var("DELTADEFI_API_KEY").unwrap();
-    let deltadefi = DeltaDeFi::new(api_key, Stage::Staging, None, None);
+    let deltadefi = DeltaDeFi::new(api_key, Stage::Staging, None);
 
     let account_balance = deltadefi.accounts.get_account_balance().await.unwrap();
     println!("Account Balance: {:?}", account_balance);
