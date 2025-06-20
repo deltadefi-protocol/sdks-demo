@@ -11,7 +11,7 @@ import {
 export async function fetchMarketDepth(apiClient: ApiClient) {
   // Prepare the request data
   const marketDepthRequest: GetMarketDepthRequest = {
-    symbol: "ADAUSDX", // Replace with the trading symbol you want to query
+    symbol: "ADAUSDM", // Replace with the trading symbol you want to query
   };
 
   // Call the getDepth function
@@ -30,7 +30,7 @@ export async function fetchMarketDepth(apiClient: ApiClient) {
 export async function fetchMarketPrice(apiClient: ApiClient) {
   // Prepare the request data
   const marketPriceRequest: GetMarketPriceRequest = {
-    symbol: "ADAUSDX", // Replace with the trading symbol you want to query
+    symbol: "ADAUSDM", // Replace with the trading symbol you want to query
   };
 
   // Call the getPrice function

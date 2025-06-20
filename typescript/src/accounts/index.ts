@@ -48,13 +48,133 @@ export async function fetchWithdrawalRecords(apiClient: ApiClient) {
 }
 
 /**
- * Fetch order records using the provided API client.
+ * Fetch open order records using the provided API client.
  * @param apiClient - The initialized API client.
+ * @param limit - The number of records to fetch per page (between 1 and 250).
+ * @param page - The page number to fetch (between 1 and 1000).
  */
-export async function fetchOrderRecords(apiClient: ApiClient) {
-  // Call the getOrderRecords method
-  const orderRecords = await apiClient.accounts.getOrderRecords();
+export async function fetchOpenOrderRecords(
+  apiClient: ApiClient,
+  limit: number = 10,
+  page: number = 1
+) {
+  console.log(
+    `Fetching open order records with limit: ${limit}, page: ${page}`
+  );
 
-  // Log the order records
-  console.log("Order Records:", orderRecords);
+  // Validate parameters
+  if (limit < 1 || limit > 250) {
+    console.warn(`Invalid limit: ${limit}. Using default limit of 10.`);
+    limit = 10;
+  }
+
+  if (page < 1 || page > 1000) {
+    console.warn(`Invalid page: ${page}. Using default page of 1.`);
+    page = 1;
+  }
+
+  try {
+    // Call the getOrderRecords method with status 'openOrder'
+    const orderRecords = await apiClient.accounts.getOrderRecords({
+      status: "openOrder",
+      limit,
+      page,
+    });
+
+    // Log the open order records
+    console.log("Open Order Records:", orderRecords);
+
+    return orderRecords;
+  } catch (error) {
+    console.error("Error fetching open order records:", error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch order history records using the provided API client.
+ * @param apiClient - The initialized API client.
+ * @param limit - The number of records to fetch per page (between 1 and 250).
+ * @param page - The page number to fetch (between 1 and 1000).
+ */
+export async function fetchOrderHistoryRecords(
+  apiClient: ApiClient,
+  limit: number = 10,
+  page: number = 1
+) {
+  console.log(
+    `Fetching order history records with limit: ${limit}, page: ${page}`
+  );
+
+  // Validate parameters
+  if (limit < 1 || limit > 250) {
+    console.warn(`Invalid limit: ${limit}. Using default limit of 10.`);
+    limit = 10;
+  }
+
+  if (page < 1 || page > 1000) {
+    console.warn(`Invalid page: ${page}. Using default page of 1.`);
+    page = 1;
+  }
+
+  try {
+    // Call the getOrderRecords method with status 'orderHistory'
+    const orderRecords = await apiClient.accounts.getOrderRecords({
+      status: "orderHistory",
+      limit,
+      page,
+    });
+
+    // Log the order history records
+    console.log("Order History Records:", orderRecords);
+
+    return orderRecords;
+  } catch (error) {
+    console.error("Error fetching order history records:", error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch trading history records using the provided API client.
+ * @param apiClient - The initialized API client.
+ * @param limit - The number of records to fetch per page (between 1 and 250).
+ * @param page - The page number to fetch (between 1 and 1000).
+ */
+export async function fetchTradingHistoryRecords(
+  apiClient: ApiClient,
+  limit: number = 10,
+  page: number = 1
+) {
+  console.log(
+    `Fetching trading history records with limit: ${limit}, page: ${page}`
+  );
+
+  // Validate parameters
+  if (limit < 1 || limit > 250) {
+    console.warn(`Invalid limit: ${limit}. Using default limit of 10.`);
+    limit = 10;
+  }
+
+  if (page < 1 || page > 1000) {
+    console.warn(`Invalid page: ${page}. Using default page of 1.`);
+    page = 1;
+  }
+
+  try {
+    // Call the getOrderRecords method with status 'tradingHistory'
+    const orderRecords = await apiClient.accounts.getOrderRecords({
+      status: "tradingHistory",
+      limit,
+      page,
+    });
+
+    // Log the trading history records
+    console.log("Trading History Records:", orderRecords);
+
+    return orderRecords;
+  } catch (error) {
+    console.error("Error fetching trading history records:", error);
+    throw error;
+  }
 }

@@ -9,7 +9,7 @@ export async function buildAndSignAndSubmitAndCancelLimitOrderTransaction(
   try {
     // Prepare the request data
     const orderRequest: BuildPlaceOrderTransactionRequest = {
-      symbol: "ADAUSDX", // Replace with the trading symbol you want to query
+      symbol: "ADAUSDM", // Replace with the trading symbol you want to query
       side: "sell", // "buy" or "sell"
       type: "limit", // "limit" or "market"
       quantity: 100, // Quantity in base units

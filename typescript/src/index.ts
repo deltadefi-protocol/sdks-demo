@@ -7,7 +7,9 @@ import {
   fetchAccountBalance,
   fetchDepositRecords,
   fetchWithdrawalRecords,
-  fetchOrderRecords,
+  fetchOpenOrderRecords,
+  fetchOrderHistoryRecords,
+  fetchTradingHistoryRecords,
   fetchEncryptedOperationKey,
 } from "./accounts";
 import { AppWalletKeyType } from "@meshsdk/core";
@@ -135,10 +137,12 @@ async function main() {
     await fetchAccountBalance(apiClient);
     await fetchDepositRecords(apiClient);
     await fetchWithdrawalRecords(apiClient);
-    await fetchOrderRecords(apiClient);
+    await fetchOpenOrderRecords(apiClient);
+    await fetchOrderHistoryRecords(apiClient);
+    await fetchTradingHistoryRecords(apiClient);
     console.log("Stop calling accounts functions.");
 
-    // // Step 5: Call functions from markets
+    // Step 5: Call functions from markets
     console.log("Starting calling markets functions...");
     await fetchMarketDepth(apiClient);
     await fetchMarketPrice(apiClient);
@@ -149,7 +153,7 @@ async function main() {
     await buildAndSignAndSubmitAndCancelLimitOrderTransaction(apiClient);
     console.log("Stop calling orders functions.");
 
-    console.log("SDK functions testing ends.");
+    // console.log("SDK functions testing ends.");
   } catch (error) {
     console.error("Unhandled error in application:", error);
   }
