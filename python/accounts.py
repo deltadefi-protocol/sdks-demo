@@ -8,6 +8,8 @@ api_key = os.environ.get("DELTADEFI_API_KEY")
 
 api = ApiClient(api_key=api_key)
 
+print(api.base_url)
+
 res = api.accounts.get_account_balance()
 print("\nGet account balance:")
 print(res)

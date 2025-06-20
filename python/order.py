@@ -1,39 +1,24 @@
 import os
-import time
 
 from deltadefi import ApiClient
 from dotenv import load_dotenv
-from sidan_gin import HDWallet
+from sidan_gin import Wallet
 
 load_dotenv(".env", override=True)
 api_key = os.environ.get("DELTADEFI_API_KEY")
 seed_phrase = os.environ.get("SEED_PHRASE")
 
-api = ApiClient(api_key=api_key)
-wallet = HDWallet(seed_phrase)
+wallet = Wallet.new_mnemonic(seed_phrase)
+api = ApiClient(api_key=api_key, wallet=wallet)
 
-res = api.order.build_place_order_transaction(
-    symbol="ADAUSDX",
+res = api.post_order(
+    symbol="ADAUSDM",
     side="sell",
     type="limit",
     quantity=51,
-    price=1.5,
+    price=15,
 )
 
-print("\nBuild place order transaction:")
-print(res)
-
-order_id = res["order_id"]
-tx_hex = res["tx_hex"]
-signed_tx = wallet.sign_tx(tx_hex)
-
-print("\nSigned transaction hex:", signed_tx)
-
-res = api.order.submit_place_order_transaction(
-    order_id=order_id,
-    signed_tx=signed_tx,
-)
-print("\nSubmit place order transaction:")
 print("Order submitted successfully.", res)
 
 # time.sleep(1)
