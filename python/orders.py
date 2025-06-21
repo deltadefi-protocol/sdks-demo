@@ -2,14 +2,13 @@ import os
 
 from deltadefi import ApiClient
 from dotenv import load_dotenv
-from sidan_gin import Wallet
 
 load_dotenv(".env", override=True)
 api_key = os.environ.get("DELTADEFI_API_KEY")
-seed_phrase = os.environ.get("SEED_PHRASE")
+password = os.environ.get("TRADING_PASSWORD")
 
-wallet = Wallet.new_mnemonic(seed_phrase)
-api = ApiClient(api_key=api_key, wallet=wallet)
+api = ApiClient(api_key=api_key)
+api.load_operation_key(password)
 
 res = api.post_order(
     symbol="ADAUSDM",

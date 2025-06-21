@@ -9,15 +9,15 @@ api_key = os.environ.get("DELTADEFI_API_KEY")
 
 api = ApiClient(api_key=api_key)
 
-res = api.market.get_depth("ADAUSDX")
+res = api.markets.get_depth("ADAUSDM")
 print("\nGet depth:")
 print(res)
 
-res = api.market.get_market_price("ADAUSDX")
+res = api.markets.get_market_price("ADAUSDM")
 print("\nGet market price:")
 print(res)
 
 end = int(time.time())
-res = api.market.get_aggregated_price("ADAUSDX", "1M", 1732982400, end)
+res = api.markets.get_aggregated_price("ADAUSDM", "1M", 1732982400, end)
 print("\nGet aggregated price")
 print(res)

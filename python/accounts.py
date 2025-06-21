@@ -18,7 +18,7 @@ res = api.accounts.get_deposit_records()
 print("\nGet deposit records:")
 print(res)
 
-res = api.accounts.get_order_records()
+res = api.accounts.get_order_records("openOrder")
 print("\nGet order records:")
 print(res)
 
