@@ -9,10 +9,6 @@ import (
 	"github.com/lpernett/godotenv"
 )
 
-// func main() {
-// 	order()
-// }
-
 func order() {
 	godotenv.Load()
 	config := deltadefi.ApiConfig{
