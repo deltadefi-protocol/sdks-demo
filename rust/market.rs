@@ -1,4 +1,4 @@
-use deltadefi::{DeltaDeFi, Stage};
+use deltadefi::{DeltaDeFi, Interval, Stage, Symbol};
 use dotenv::dotenv;
 use std::env;
 
@@ -6,10 +6,6 @@ pub async fn market() {
     dotenv().ok();
     let api_key = env::var("DELTADEFI_API_KEY").expect("DELTADEFI_API_KEY must be set");
     let deltadefi = DeltaDeFi::new(api_key, Stage::Staging, None).unwrap();
-
-    // Get market depth
-    let res = deltadefi.market.get_depth("ADAUSDM").await.unwrap();
-    println!("\nGet market depth:\n{:?}", res);
 
     // Get market price
     let res = deltadefi.market.get_market_price("ADAUSDM").await.unwrap();
@@ -23,7 +19,7 @@ pub async fn market() {
         .as_secs() as u64;
     let res = deltadefi
         .market
-        .get_aggregated_price("ADAUSDM", "1d", start, end)
+        .get_aggregated_price(Symbol::ADAUSDM, Interval::Interval1d, start, end as i64)
         .await
         .unwrap();
     println!("\nGet aggregated price:\n{:?}", res);

@@ -489,7 +489,9 @@ dependencies = [
 
 [[package]]
 name = "deltadefi"
-version = "0.0.4"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36f54a5c22094f568ac5ea75641d7dbf0d4287a679d0aff9540e09ffa13fef7d"
 dependencies = [
  "async-trait",
  "hex",

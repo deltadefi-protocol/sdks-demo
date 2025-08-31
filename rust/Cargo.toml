@@ -9,6 +9,6 @@ path = "main.rs"
 
 [dependencies]
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
-# deltadefi = "0.0.2"
-deltadefi = { version = "0.0.4", path = "../../rust-sdk" }
+deltadefi = "0.1.0"
+# deltadefi = { version = "0.1.0", path = "../../rust-sdk" }
 dotenv = "0.15.0"
