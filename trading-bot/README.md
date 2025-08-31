@@ -1,28 +1,50 @@
 # DeltaDeFi Trading Bot Demo
 
+## Development Setup
+
+1. **Create and activate a virtual environment:**
+
+   ```sh
+   python3 -m venv .venv
+   source .venv/bin/activate
+   ```
+
+2. **Install dependencies:**
+
+   ```sh
+   pip install -e .
+   ```
+
 ## Structure
 
 ```sh
 trading-bot/
+  pyproject.toml
+  README.md
+  Makefile
+  docs/
+    01-architecture.md
+    02-user-guide.md
+    03-deployment.md
   bot/
     __init__.py
-    config.py                # symbol, bps, sizes, risk caps
-    strategy/grid_peg.py     # ±5 bps logic, tick snapping
-    venue/base.py            # Exchange interface
-    venue/binance.py         # WS bookTicker + REST/WSS orders
-    risk/manager.py
-    oms/manager.py           # state machine: idle→working→filled/canceled
-    storage/sqlite.py        # fills, positions, pnl
-    cli.py                   # run backtest, paper, live (binance, deltadefi)
-  docs/
-    01-architecture.md       # satisfies Milestone 4 “full logic” doc
-    02-user-guide.md         # UX: config→run→monitor (Milestone 4)
-    03-deployment.md         # Docker, GCP/AWS scripts (Milestone 4)
-  deploy/
-    docker-compose.yaml
-    systemd.service
+    main.py                 # asyncio entrypoint: wire tasks, graceful shutdown
+    config.py               # Pydantic settings (env + YAML)
+    logging.py              # structured logs
+    binance_ws.py           # listen: adausdt@bookTicker → yield BBO(bid,ask,ts)
+    quote.py                # ±bps math, (optional) don't-cross clamp
+    signer.py               # sign(tx_hex) -> signed_tx (pluggable)
+    deltadefi.py            # REST build/submit + Account WS (source of truth)
+    oms.py                  # tiny FSM per side; uses repos below (one file)
+    db/
+      __init__.py
+      sqlite.py             # connect(path)->conn, WAL+PRAGMAs, migrations runner
+      schema.sql            # DDL (quotes, orders, fills, outbox)
+      repo.py               # small repos: QuotesRepo, OrdersRepo, FillsRepo, OutboxRepo
+      outbox_worker.py      # reads outbox, calls DeltaDeFi build/submit/cancel* safely
+
   tests/
-    unit/  integration/
-  LICENSE (Apache-2.0)
-  README.md
+    test_quote.py
+    test_repos.py
+
 ```
