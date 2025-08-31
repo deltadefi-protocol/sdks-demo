@@ -28,7 +28,7 @@ Continuously mirror Binance BBO for `ADAUSDT` and post maker limit orders on Del
 
 - Binance market data (WS): wss://stream.binance.com:9443/ws/adausdt@bookTicker (individual symbol book-ticker, real-time; supports combined streams).
 
-- DeltaDeFi REST base (pre-prod): https://api-staging.deltadefi.io (Mainnet TBA). Auth via X-API-KEY.
+- DeltaDeFi REST base (pre-prod): <https://api-staging.deltadefi.io> (Mainnet TBA). Auth via X-API-KEY.
 
 - DeltaDeFi order flow: build POST /orders/build → returns {order_id, tx_hex}; sign tx; submit POST /orders/submit with {order_id, signed_tx}. Use type=limit, symbol="ADAUSDM".
 
