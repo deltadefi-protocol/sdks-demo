@@ -11,7 +11,7 @@ Continuously mirror Binance BBO for `ADAUSDT` and post maker limit orders on Del
          │
          ▼
    [Quote Engine]
-   - total_bps = anchor_bps + venue_spread_bps  (weak evidence)
+   - total_bps = anchor_bps + venue_spread_bps
    - bid = bestBid * (1 - total_bps/10000)
    - ask = bestAsk * (1 + total_bps/10000)
          │
@@ -50,10 +50,10 @@ Continuously mirror Binance BBO for `ADAUSDT` and post maker limit orders on Del
 symbol_src: ADAUSDT # Binance
 symbol_dst: ADAUSDM # DeltaDeFi
 anchor_bps: 5 # distance from Binance BBO
-venue_spread_bps: 3 # extra buffer for cross-venue risk (weak evidence)
+venue_spread_bps: 3 # extra buffer for cross-venue risk
 side_enable: [bid, ask] # which sides to quote
-qty: 100 # ADA units; validate against balances (weak evidence)
-max_skew: 2_000 # ADA; pause bids if long beyond this (weak evidence)
+qty: 100 # ADA units; validate against balances
+max_skew: 2_000 # ADA; pause bids if long beyond this
 ddefi_api_key: "..."
 ```
 
