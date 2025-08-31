@@ -295,9 +295,9 @@ checksum = "d71b6127be86fdcfddb610f7182ac57211d4b18a3e9c82eb2d17662f2227ad6a"
 
 [[package]]
 name = "cardano-serialization-lib"
-version = "14.0.0"
+version = "15.0.0-beta.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "097bdf373ed3e91b0a2e46b7c017e47a986509b478659f1c688bb28e58b3300d"
+checksum = "dce90222c3b28f994732b0dc2405e21ae0ec509efb074298fd81267c0176ebf9"
 dependencies = [
  "bech32 0.7.3",
  "cbor_event",
@@ -489,9 +489,7 @@ dependencies = [
 
 [[package]]
 name = "deltadefi"
-version = "0.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5de0e00f1a0e207fb5a153660263db39d6c8b615ec7ef1de0e1e5e0487fda0d6"
+version = "0.0.4"
 dependencies = [
  "async-trait",
  "hex",
@@ -3124,9 +3122,9 @@ dependencies = [
 
 [[package]]
 name = "whisky"
-version = "1.0.3"
+version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89cdd46df6fc7f278b4e6a3c0f5076f95c1596f97fab5e8ffff99519ea0660c2"
+checksum = "100e93b77239c4155c6cd6e1aa387b141103739d224b7d81db225719aa677ca5"
 dependencies = [
  "async-trait",
  "cryptoxide",
@@ -3148,15 +3146,16 @@ dependencies = [
  "wasm-bindgen",
  "whisky-common",
  "whisky-csl",
+ "whisky-macros",
  "whisky-provider",
  "whisky-wallet",
 ]
 
 [[package]]
 name = "whisky-common"
-version = "1.0.3"
+version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fba177a70d8aed2ed7253a9be50044013103c42786cefd31a3d70429be00d6f7"
+checksum = "2685223e9736b6489b5b1a5cd364ef070f0524548bb5d2d710620965e466608a"
 dependencies = [
  "async-trait",
  "hex",
@@ -3164,13 +3163,14 @@ dependencies = [
  "serde",
  "serde_json",
  "uplc",
+ "whisky-macros",
 ]
 
 [[package]]
 name = "whisky-csl"
-version = "1.0.3"
+version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a0e8dfa75dcc7e9519dadc5a1e6167e22fae2d69ca14ead172de739ba4a031e"
+checksum = "6d3b742bd39851573b57e156c1da841f06de0a4bb3ca04472e39bc587ff7c8ab"
 dependencies = [
  "cardano-serialization-lib",
  "cryptoxide",
@@ -3194,10 +3194,21 @@ dependencies = [
 ]
 
 [[package]]
-name = "whisky-provider"
-version = "1.0.3"
+name = "whisky-macros"
+version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "948f4c2918feeb33424638c580c3a365fbb326b70babb003cd5cc1c1b54821f1"
+checksum = "a463fc25f42c050b3c7d812100bf81240764f227f5e843fa9799ed2400be5948"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "whisky-provider"
+version = "1.0.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e63d0eaf87427c2f00becb1a65752c071e259a05a7844432dc55c35f07cf0e04"
 dependencies = [
  "async-trait",
  "futures",
@@ -3213,9 +3224,9 @@ dependencies = [
 
 [[package]]
 name = "whisky-wallet"
-version = "1.0.3"
+version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ec2106030876afb66b89696c89217e1ffe4db1466cf5ddde479101fb2d52e7f"
+checksum = "a668eb1c12e743c165ac84a8c8629fdbe86e6d498aaec4bd0c5d9624b73d09b6"
 dependencies = [
  "aes-gcm",
  "base64 0.22.1",

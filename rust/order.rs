@@ -9,7 +9,7 @@ pub async fn order() {
         env::var("ENCRYPTION_PASSCODE").expect("ENCRYPTION_PASSCODE must be set");
 
     // Initialize DeltaDeFi client and wallet
-    let mut deltadefi = DeltaDeFi::new(api_key, Stage::Staging, None);
+    let mut deltadefi = DeltaDeFi::new(api_key, Stage::Staging, None).unwrap();
     deltadefi
         .load_operation_key(&encryption_passcode)
         .await
@@ -17,57 +17,24 @@ pub async fn order() {
 
     // Build place order transaction
     let res = deltadefi
-        .order
-        .build_place_order_transaction(
-            "ADAUSDX",
+        .post_order(
+            "ADAUSDM",
             OrderSide::Sell,
             OrderType::Limit,
-            51.0,
-            Some(1.5),
-            None,
+            100.0,
+            Some(51.0),
+            Some(false),
             None,
         )
         .await
-        .expect("Failed to build place order transaction");
+        .expect("Failed to post order");
 
-    println!("\nBuild place order transaction:\n{:?}", res);
+    println!("\nPost order:\n{:?}", res);
 
-    let order_id = res.order_id;
-    let tx_hex = res.tx_hex;
-    let signed_tx = deltadefi.sign_tx_by_operation_key(&tx_hex).unwrap();
-
-    println!("\nSigned transaction hex: {}", signed_tx);
-
-    // Submit place order transaction
-    let res = deltadefi
-        .order
-        .submit_place_order_transaction(&order_id, &signed_tx)
+    deltadefi
+        .cancel_order(&res.order.order_id)
         .await
-        .expect("Failed to submit place order transaction");
+        .expect("Failed to cancel order");
 
-    println!("\nSubmit place order transaction:");
-    println!("Order submitted successfully: {:?}", res);
-
-    // Sleep for 1s - make sure order in on book
-    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-
-    let res = deltadefi
-        .order
-        .build_cancel_order_transaction(&order_id)
-        .await
-        .expect("Failed to build cancel order transaction");
-
-    println!("\nBuild cancel order transaction:\n{:?}", res);
-
-    let tx_hex = res.tx_hex;
-    let signed_tx = deltadefi.sign_tx_by_operation_key(&tx_hex).unwrap();
-
-    let res = deltadefi
-        .order
-        .submit_cancel_order_transaction(&signed_tx)
-        .await
-        .expect("Failed to submit cancel order transaction");
-
-    println!("\nSubmit cancel order transaction:");
-    println!("Order canceled successfully: {:?}", res);
+    println!("\nCancel order successful\n");
 }
