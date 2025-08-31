@@ -9,9 +9,9 @@ import (
 	"github.com/lpernett/godotenv"
 )
 
-func main() {
-	market()
-}
+// func main() {
+// 	market()
+// }
 
 func market() {
 	godotenv.Load()
