@@ -45,40 +45,6 @@ Trading Logic (Core Business Logic)
 
 ---
 
-🎯 RECOMMENDED IMPLEMENTATION ORDER
-
-Phase 1: Database Foundation (Next Priority)
-
-1. Database Schema (db/schema.sql)
-
-   - Tables: quotes, orders, fills, outbox
-   - Indexes for performance
-   - Migration framework
-
-2. SQLite Connection (db/sqlite.py)
-
-   - WAL mode configuration
-   - Connection pooling
-   - Migration runner
-
-3. Repository Layer (db/repo.py)
-
-   - QuotesRepo, OrdersRepo, FillsRepo, OutboxRepo
-   - Type-safe data access patterns
-
-Phase 2: DeltaDeFi Integration
-
-4. Transaction Signer (signer.py)
-
-   - Cardano transaction signing with pycardano
-   - Key management abstraction
-
-5. DeltaDeFi REST Client (deltadefi.py)
-
-   - /orders/build and /orders/submit endpoints
-   - Error handling and retries
-   - Account WebSocket for fills/balances
-
 Phase 3: Trading Logic
 
 6. Order Management System (oms.py)

@@ -65,6 +65,7 @@ class ExchangeConfig(BaseModel):
         default=None,
         description="DeltaDeFi WebSocket URL (derived from base URL if not provided)",
     )
+    trading_password: str = Field(default="", description="Trading password for operation key decryption")
 
 
 class RiskConfig(BaseModel):
