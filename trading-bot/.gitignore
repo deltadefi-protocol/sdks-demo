@@ -82,6 +82,19 @@ logs/
 *.tmp
 *.temp
 
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+trading_bot.db*
+backups/
+*.backup
+*.dump
+*.sql
+
 # Binance
 binance-ed25519
 binance-ed25519.pub

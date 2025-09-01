@@ -1,105 +1,258 @@
 # User Guide
 
+Complete setup, configuration, and operational guide for the DeltaDeFi trading bot.
+
+> **📝 Quick Start**: For immediate setup, see the [README](../README.md#quick-start)
+
 ## Prerequisites
 
-- Python 3.11 or later
-- [uv](https://github.com/astral-sh/uv) package manager (recommended)
-- DeltaDeFi API key (add header X-API-KEY) and trading passcode
-- ADA/USDM balances on DeltaDeFi; pair symbol is ADAUSDM
+- Python 3.11+ and [uv](https://github.com/astral-sh/uv) package manager
+- DeltaDeFi API key and trading password
+- Sufficient ADA/USDM balances on DeltaDeFi for trading pair ADAUSDM
+- Basic understanding of market making concepts
 
 ## Installation
 
-### Using uv (recommended)
+```sh
+# Clone and install
+git clone <repository-url> && cd trading-bot
+make install && make hooks
+```
 
-1. **Install dependencies:**
-
-   ```sh
-   make install
-   ```
-
-2. **Set up pre-commit hooks:**
-
-   ```sh
-   make hooks
-   ```
-
-### Using pip (alternative)
-
-1. **Create virtual environment:**
-
-   ```sh
-   python3 -m venv .venv
-   source .venv/bin/activate
-   ```
-
-2. **Install dependencies:**
-
-   ```sh
-   pip install -e .[dev]
-   ```
+> **👩‍💻 Alternative methods**: See [Development Guide](../DEVELOPMENT.md) for pip installation
 
 ## Configuration
 
-1. **Copy environment template:**
+> **📝 Complete Configuration Guide**: See [CONFIG.md](../CONFIG.md) for the full configuration system
+
+### Quick Setup
+
+1. **Copy and edit environment file:**
 
    ```sh
    cp .env.example .env
+   # Edit .env with your DeltaDeFi API key and trading password
    ```
 
-2. **Edit `.env` with your settings:**
+2. **Key required settings:**
 
    ```bash
-   BINANCE_WS_URL=wss://stream.binance.com:9443/ws/adausdt@bookTicker
    DELTADEFI_API_KEY=your_api_key_here
-   DELTADEFI_BASE_URL=https://api-staging.deltadefi.io
+   TRADING_PASSWORD=your_trading_password
+   SYSTEM_MODE=testnet  # or mainnet
    ```
+
+### Trading Parameters
+
+Customize trading behavior by editing `config.yaml` or using environment variables:
+
+- **Spread Control**: `TOTAL_SPREAD_BPS=8` (basis points)
+- **Order Size**: `QTY=100` (quantity per order)
+- **Symbols**: `SYMBOL_SRC=ADAUSDT`, `SYMBOL_DST=ADAUSDM`
+- **Risk Limits**: `MAX_POSITION_SIZE=10000`, `MAX_DAILY_LOSS=1000`
 
 ## Running the Bot
 
-### Development Mode
+### Standard Operation
 
 ```sh
+# Start with default configuration
 make run
+
+# Or with custom parameters
+uv run python -m bot.main --total-spread-bps 6 --qty 200
+
+# View all options
+uv run python -m bot.main --help
 ```
 
-Or directly:
-
-```sh
-uv run python -m bot.main
-```
-
-### With Custom Parameters
-
-```sh
-uv run python -m bot.main --anchor-bps 5 --venue-spread-bps 3 --qty 100
-```
+> **🚀 Production Deployment**: See [Deployment Guide](03-deployment.md) for production setup
 
 ## Development Commands
 
-- `make help` - Show all available commands
-- `make test` - Run tests with pytest
-- `make fmt` - Format code with ruff
-- `make lint` - Lint code with ruff
-- `make type` - Type check with mypy
-- `make precommit` - Run all quality checks
-- `make clean` - Remove caches and build artifacts
-
-## Monitoring
-
-The bot logs structured JSON output with the following information:
-
-- **WebSocket Status**: Connection state and market data reception
-- **Order Management**: Rate limiting status and order submissions
-- **System Health**: Periodic status reports every 30 seconds
-
-Example log output:
-
-```json
-{
-  "event": "Trading Bot Status",
-  "timestamp": "2025-09-01T12:00:00Z",
-  "orders_submitted": 42,
-  "rate_limit_tokens": 4.8,
-  "websocket_connected": true
-}
+```sh
+make help          # Show all commands
+make test          # Run test suite
+make fmt           # Format code
+make lint          # Lint code
+make precommit     # All quality checks
 ```
+
+> **👩‍💻 Development Setup**: See [Development Guide](../DEVELOPMENT.md) for detailed development workflow
+
+## Monitoring and Operations
+
+### Real-time Monitoring
+
+The bot provides structured JSON logging for comprehensive monitoring:
+
+```sh
+# Follow real-time logs with formatting
+tail -f logs/trading-bot.log | jq '.'
+
+# Monitor critical events
+tail -f logs/trading-bot.log | jq 'select(.level == "ERROR" or .level == "WARNING")'
+
+# Track order flow
+tail -f logs/trading-bot.log | jq 'select(.event | contains("order"))'
+
+# Check system health reports
+tail -f logs/trading-bot.log | jq 'select(.event == "Trading Bot Status")'
+```
+
+### Key Performance Metrics
+
+Monitor these essential metrics for bot health:
+
+- **Orders Submitted**: Total orders sent to exchange
+- **Rate Limit Tokens**: Available tokens (0-5, should stay above 1)
+- **WebSocket Status**: Connection health to both exchanges
+- **Position Size**: Current ADA position relative to limits
+- **Daily P&L**: Profit/loss tracking
+- **Fill Rate**: Percentage of orders successfully filled
+
+### Health Checks
+
+```sh
+# Verify bot responsiveness (recent activity within 2 minutes)
+sqlite3 trading_bot.db "SELECT COUNT(*) FROM orders WHERE created_at > datetime('now', '-2 minutes');"
+
+# Check database integrity
+sqlite3 trading_bot.db "PRAGMA integrity_check;"
+
+# Monitor recent performance
+sqlite3 trading_bot.db "SELECT DATE(created_at) as date, COUNT(*) as orders, SUM(CASE WHEN state = 'filled' THEN 1 ELSE 0 END) as filled FROM orders WHERE created_at >= date('now', '-7 days') GROUP BY DATE(created_at);"
+```
+
+## Advanced Usage
+
+### Custom Trading Parameters
+
+```sh
+# Tighter spreads for active markets
+uv run python -m bot.main --total-spread-bps 4
+
+# Larger orders for institutional trading
+uv run python -m bot.main --qty 1000
+
+# Mainnet trading with custom risk limits
+SYSTEM_MODE=mainnet MAX_POSITION_SIZE=50000 make run
+```
+
+### Database Operations
+
+```sh
+# View recent order history
+sqlite3 trading_bot.db "SELECT * FROM orders ORDER BY created_at DESC LIMIT 10;"
+
+# Check current position
+sqlite3 trading_bot.db "SELECT SUM(CASE WHEN side = 'buy' THEN quantity ELSE -quantity END) as net_position FROM orders WHERE state = 'filled' AND symbol = 'ADAUSDM';"
+
+# Analyze daily performance
+sqlite3 trading_bot.db "SELECT DATE(created_at) as date, COUNT(*) as orders, AVG(fill_price) as avg_price FROM orders WHERE state = 'filled' GROUP BY DATE(created_at) ORDER BY date DESC;"
+```
+
+## Risk Management
+
+### Emergency Procedures
+
+**Immediate Stop:**
+
+```sh
+# Graceful shutdown
+pkill -SIGTERM -f "python -m bot.main"
+
+# Force stop if needed
+pkill -SIGKILL -f "python -m bot.main"
+```
+
+**Position Monitoring:**
+Set risk limits in your configuration:
+
+```yaml
+# config.yaml - Risk settings
+risk:
+  max_position_size: 10000 # Maximum ADA position
+  max_daily_loss: 1000 # Daily loss limit in USD
+  emergency_stop: false # Emergency halt flag
+  position_check_interval: 30 # Check frequency (seconds)
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Connection Problems:**
+
+```sh
+# Test exchange connectivity
+curl -I https://api-staging.deltadefi.io/health
+curl -I https://api.binance.com/api/v3/ping
+
+# Verify WebSocket connectivity
+wscat wss://stream.binance.com:9443/ws/adausdt@bookTicker
+```
+
+**Authentication Issues:**
+
+```sh
+# Test API key
+curl -H "X-API-KEY: your_key" https://api-staging.deltadefi.io/account/balance
+
+# Verify trading password setup
+# (Validation occurs automatically during bot startup)
+```
+
+**Database Issues:**
+
+```sh
+# Rebuild database if corrupted (CAUTION: loses data)
+rm trading_bot.db*
+uv run python -m bot.main --init-db
+```
+
+### Error Codes
+
+| Error Code | Description                 | Solution                           |
+| ---------- | --------------------------- | ---------------------------------- |
+| `CONN_001` | WebSocket connection failed | Check network and exchange status  |
+| `AUTH_002` | API authentication failed   | Verify API key and permissions     |
+| `RATE_003` | Rate limit exceeded         | Wait or reduce trading frequency   |
+| `RISK_004` | Risk limit breached         | Check position size and daily loss |
+| `DB_005`   | Database operation failed   | Check disk space and permissions   |
+
+### Log Levels
+
+Control logging verbosity:
+
+```sh
+# Debug mode (development)
+LOG_LEVEL=DEBUG make run
+
+# Production logging
+LOG_LEVEL=INFO make run
+
+# Minimal output
+LOG_LEVEL=WARNING make run
+```
+
+## Configuration Reference
+
+> **📝 Complete Reference**: See [CONFIG.md](../CONFIG.md) for all configuration options and the two-tier configuration system
+
+### Essential Variables
+
+| Variable            | Description                    | Default   | Required |
+| ------------------- | ------------------------------ | --------- | -------- |
+| `DELTADEFI_API_KEY` | DeltaDeFi API key              | -         | ✅       |
+| `TRADING_PASSWORD`  | DeltaDeFi trading password     | -         | ✅       |
+| `SYSTEM_MODE`       | Trading mode (testnet/mainnet) | `testnet` | ❌       |
+| `TOTAL_SPREAD_BPS`  | Total spread in basis points   | `8`       | ❌       |
+
+---
+
+> **📚 Related Documentation:**
+>
+> - [Deployment Guide](03-deployment.md) - Production deployment and operations
+> - [Architecture Overview](architecture/overview.md) - System design and components
+> - [Development Guide](../DEVELOPMENT.md) - Code standards and development workflow

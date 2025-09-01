@@ -1,131 +1,116 @@
-# DeltaDeFi Trading Bot Demo
+# DeltaDeFi Trading Bot
 
-A Python trading bot that connects to Binance WebSocket for market data and implements automated trading strategies on DeltaDeFi.
+A sophisticated Python trading bot for automated market making between Binance and DeltaDeFi exchanges using real-time WebSocket feeds, advanced order management, and comprehensive risk controls.
 
-## Prerequisites
+## Features
 
-- Python 3.11 or later
-- [uv](https://github.com/astral-sh/uv) (recommended package manager)
+- **Real-time Market Making**: Mirrors Binance ADAUSDT to DeltaDeFi ADAUSDM with configurable spreads
+- **Advanced Order Management**: Full order lifecycle with state machine and risk controls
+- **Production-Ready**: Rate limiting, database persistence, fault tolerance, and structured logging
+- **Developer-Friendly**: Modern Python 3.11+, full type safety, comprehensive testing, and quality tooling
 
-## Development Setup
+## Quick Start
 
-### Using uv (recommended)
+### Prerequisites
 
-1. **Install dependencies and create virtual environment:**
+- Python 3.11+ and [uv](https://github.com/astral-sh/uv) package manager
+- DeltaDeFi API key and trading password
 
-   ```sh
-   make install
-   ```
+### Installation & Setup
 
-   Or manually:
+```bash
+# Clone and install
+git clone <repository-url> && cd trading-bot
+make install && make hooks
 
-   ```sh
-   uv venv
-   uv pip install -e . --group dev
-   ```
+# Configure credentials
+cp .env.example .env
+# Edit .env with your DeltaDeFi API key and trading password
 
-2. **Set up pre-commit hooks:**
-
-   ```sh
-   make hooks
-   ```
-
-### Using pip (alternative)
-
-1. **Create and activate a virtual environment:**
-
-   ```sh
-   python3 -m venv .venv
-   source .venv/bin/activate
-   ```
-
-2. **Install dependencies:**
-
-   ```sh
-   pip install -e .[dev]
-   ```
-
-## Running the Bot
-
-```sh
+# Start trading
 make run
 ```
 
-Or directly:
-
-```sh
-uv run python -m bot.main
-```
-
-## Development Commands
-
-- `make help` - Show all available commands
-- `make test` - Run tests with pytest
-- `make fmt` - Format code with ruff
-- `make lint` - Lint code with ruff
-- `make type` - Type check with mypy
-- `make precommit` - Run all quality checks
+> **📖 For detailed setup, configuration, and usage instructions, see:**
+>
+> - **[User Guide](docs/02-user-guide.md)** - Complete setup and configuration
+> - **[Configuration Guide](CONFIG.md)** - Configuration system and options
+> - **[Development Guide](DEVELOPMENT.md)** - Development setup and code quality
 
 ## Architecture
 
-The trading bot is built with Python 3.11+ and uses modern async/await patterns with structured logging and rate limiting.
+The bot uses a modular architecture with clear separation between market data ingestion, quote generation, order management, and exchange connectivity:
 
-### Key Features
+```mermaid
+flowchart TD
+    A["Binance WebSocket"] -->|"Book Ticker"| B["Quote Engine"]
+    B -->|"Generated Quotes"| C["Quote-to-Order Pipeline"]
+    C -->|"Orders"| D["Order Management System"]
+    D -->|"Rate Limited"| E["DeltaDeFi Client"]
+    E -->|"REST API"| F["DeltaDeFi Exchange"]
 
-- **WebSocket Market Data**: Connects to Binance WebSocket for real-time price feeds
-- **Rate Limited Order Management**: Token bucket rate limiter (5 orders/second) for DeltaDeFi API
-- **Structured Logging**: JSON structured logs with contextual information
-- **Graceful Shutdown**: Proper signal handling and resource cleanup
-- **Modern Python**: Type hints, Pydantic models, async/await throughout
+    G["Account WebSocket"] -->|"Fills/Balances"| H["Account Manager"]
+    H -->|"Balance Updates"| I["Fill Reconciler"]
+    I -->|"Position Updates"| D
 
-## Project Structure
+    J["SQLite Database"] <-->|"Persistence"| K["Repository Layer"]
+    K <-->|"Event Sourcing"| L["Outbox Worker"]
+    L -->|"Reliable Delivery"| E
+```
+
+> **🏗️ For detailed architecture documentation, see [Architecture Overview](docs/architecture/overview.md)**
+
+## Development
+
+### Project Structure
 
 ```sh
 trading-bot/
-  pyproject.toml            # Modern Python project configuration (uv + ruff + mypy)
-  uv.lock                   # Dependency lock file
-  Makefile                  # Development workflow automation
-  README.md
-  .env.example              # Environment variables template
-  docs/
-    01-architecture.md      # High-level design and architecture
-    02-user-guide.md        # User guide and configuration
-    03-deployment.md        # Deployment instructions
-  bot/
-    __init__.py
-    main.py                 # Main entry point with TradingBot class
-    log_config.py           # Structured logging configuration
-    binance_ws.py           # Binance WebSocket client for market data
-    order_manager.py        # Order management with rate limiting
-    rate_limiter.py         # Token bucket rate limiter implementation
-    config.py               # Pydantic settings (env + YAML)
-    quote.py                # ±bps math, (optional) don't-cross clamp
-    deltadefi.py            # REST build/submit + Account WS (source of truth)
-    oms.py                  # tiny FSM per side; uses repos below (one file)
-    db/
-      __init__.py
-      sqlite.py             # connect(path)->conn, WAL+PRAGMAs, migrations runner
-      schema.sql            # DDL (quotes, orders, fills, outbox)
-      repo.py               # small repos: QuotesRepo, OrdersRepo, FillsRepo, OutboxRepo
-      outbox_worker.py      # reads outbox, calls DeltaDeFi build/submit/cancel* safely
-  tests/
-    test_quote.py
-    test_repos.py
+├── bot/                    # Main application code
+├── docs/                   # Documentation
+│   ├── architecture/       # System architecture details
+│   ├── 02-user-guide.md   # User setup and configuration
+│   └── 03-deployment.md   # Production deployment guide
+├── tests/                  # Test suite
+├── CONFIG.md              # Configuration system guide
+├── DEVELOPMENT.md         # Development setup and standards
+└── README.md              # This file
 ```
 
-## Dependencies
+### Development Commands
 
-Core dependencies:
+```bash
+make help          # Show all commands
+make test          # Run test suite
+make fmt           # Format code with ruff
+make lint          # Lint code with ruff
+make precommit     # Run all quality checks
+```
 
-- **pycardano**: Cardano blockchain integration
-- **aiohttp**: Async HTTP client for API calls
-- **pydantic**: Data validation and settings management
-- **structlog**: Structured logging
-- **sidan-binance-py**: Binance WebSocket client
+> **👩‍💻 For detailed development setup, code standards, and testing, see [Development Guide](DEVELOPMENT.md)**
 
-Development dependencies:
+## Documentation
 
-- **pytest + pytest-asyncio**: Testing framework
-- **ruff**: Fast Python linter and formatter
-- **mypy**: Static type checker
-- **pre-commit**: Git hooks for code quality
+| Document                                                   | Purpose                                 |
+| ---------------------------------------------------------- | --------------------------------------- |
+| **[User Guide](docs/02-user-guide.md)**                    | Installation, configuration, monitoring |
+| **[Deployment Guide](docs/03-deployment.md)**              | Production deployment and operations    |
+| **[Configuration Guide](CONFIG.md)**                       | Configuration system and all options    |
+| **[Development Guide](DEVELOPMENT.md)**                    | Code standards and development setup    |
+| **[Architecture Overview](docs/architecture/overview.md)** | System design and components            |
+
+### Component Documentation
+
+- **[Order Management System](docs/architecture/oms.md)** - Order lifecycle and risk management
+- **[Quote Engine](docs/architecture/quote-engine.md)** - Price generation and BPS calculations
+- **[Account Manager](docs/architecture/account-manager.md)** - Balance tracking and reconciliation
+- **[Rate Limiter](docs/architecture/rate-limiter.md)** - API rate limiting implementation
+- **[Database Layer](docs/architecture/database.md)** - Data persistence and migrations
+- **[DeltaDeFi Integration](docs/architecture/deltadefi-integration.md)** - Exchange connectivity
+- **[Binance Integration](docs/architecture/binance-integration.md)** - Market data ingestion
+
+## Support
+
+- **Documentation**: See links above for comprehensive guides
+- **Issues**: Report bugs via GitHub issues
+- **Development**: See [DEVELOPMENT.md](DEVELOPMENT.md) for contribution guidelines

@@ -421,7 +421,7 @@ wheels = [
 
 [[package]]
 name = "deltadefi"
-version = "0.1.0"
+version = "0.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
@@ -434,9 +434,9 @@ dependencies = [
     { name = "urllib3" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/de/67/55a8e7537b9b0120c74e4a40d10c457515e0b01b7e20a856629c2f3b217a/deltadefi-0.1.0.tar.gz", hash = "sha256:aba41ce15c19262c024af70537d292566fd877be8ffb0fde3b910cb21ca7b8e5", size = 97180, upload-time = "2025-09-01T06:03:33.272Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d1/70/cabebdf03c04474a15ca2c309329127bc70566a26fd8c5668834be4d17e3/deltadefi-0.1.1.tar.gz", hash = "sha256:49495418dc47fb8b34677202165de953efe72989637914512316d6c1417ad292", size = 103490, upload-time = "2025-09-01T21:55:32.232Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/76/2a/a028c2df11fe5b8fe968f15b7201a8c9a1b1ab49d80f7a0201e661d795ad/deltadefi-0.1.0-py3-none-any.whl", hash = "sha256:a4af17d6987f301c81f13c6fccea5881866431378900440447479fadd708c0c4", size = 16080, upload-time = "2025-09-01T06:03:32.082Z" },
+    { url = "https://files.pythonhosted.org/packages/c5/b0/27139508b0ee375162d52e90ea8b15dbb77575d299d405fd4df95f681613/deltadefi-0.1.1-py3-none-any.whl", hash = "sha256:6efdd52edf99a81d62129cbe38cd5504a106180a81921890cf4fc6b2eb1708b4", size = 16876, upload-time = "2025-09-01T21:55:31.071Z" },
 ]
 
 [[package]]
@@ -1430,7 +1430,7 @@ dev = [
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.10.0" },
     { name = "aiosqlite", specifier = ">=0.20.0" },
-    { name = "deltadefi", specifier = ">=0.1.0" },
+    { name = "deltadefi", specifier = ">=0.1.1" },
     { name = "pycardano", specifier = ">=0.12.0" },
     { name = "pydantic", specifier = ">=2.10.0" },
     { name = "pydantic-settings", specifier = ">=2.7.0" },
