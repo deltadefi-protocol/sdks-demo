@@ -6,12 +6,11 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "pycardano>=0.12.0",
-    "websockets>=13.1",
     "aiohttp>=3.10.0",
     "pydantic>=2.10.0",
     "python-dotenv>=1.0.0",
-    "asyncio-mqtt>=0.17.0",
     "structlog>=24.0.0",
+    "sidan-binance-py>=0.0.1",
 ]
 
 [dependency-groups]

@@ -4,6 +4,26 @@
 
 Continuously mirror Binance BBO for `ADAUSDT` and post maker limit orders on DeltaDeFi `ADAUSDM` with an added spread buffer.
 
+## Implementation Status
+
+The current implementation includes:
+
+- **WebSocket Market Data**: Real-time Binance WebSocket connection for ADAUSDT book ticker
+- **Order Management System**: Rate-limited order manager with token bucket rate limiter (5 orders/second)
+- **Structured Logging**: JSON structured logs with contextual information
+- **Async/Await Architecture**: Modern Python async patterns throughout
+- **Type Safety**: Full type hints and mypy type checking
+- **Code Quality**: Ruff linting, formatting, and pre-commit hooks
+
+## Technology Stack
+
+- **Python 3.11+**: Modern Python with async/await
+- **uv**: Fast Python package manager and dependency resolver
+- **Pydantic**: Data validation and settings management
+- **structlog**: Structured logging with JSON output
+- **aiohttp**: Async HTTP client for API calls
+- **pytest**: Testing framework with async support
+
 ## High-level design
 
 ```sh

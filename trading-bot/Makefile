@@ -18,19 +18,19 @@ PY := python
 help: ## Show this help with grouped commands
 	@echo "Available commands:"
 	@echo ""
-	@echo "=æ Installation & Setup:"
+	@echo "=ï¿½ Installation & Setup:"
 	@grep -E '^[a-zA-Z_\-]+:.*##.*install' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
 	@echo ""
-	@echo ">ê Testing & Quality:"
+	@echo ">ï¿½ Testing & Quality:"
 	@grep -E '^[a-zA-Z_\-]+:.*##.*\[(test|lint|format|type|quality|check)\]' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
 	@echo ""
-	@echo "=€ Trading Bot Execution:"
+	@echo "=ï¿½ Trading Bot Execution:"
 	@grep -E '^[a-zA-Z_\-]+:.*##.*\[(run|bot|trading)\]' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
 	@echo ""
-	@echo "=à  Other Utilities:"
+	@echo "=ï¿½  Other Utilities:"
 	@grep -E '^[a-zA-Z_\-]+:.*##[^[]*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
 
-# =æ Installation & Setup
+# =ï¿½ Installation & Setup
 venv: ## Create virtual environment [install]
 	@$(UV) venv
 
@@ -41,7 +41,7 @@ hooks: ## Install git pre-commit hooks [install]
 	@$(UV) pip install pre-commit
 	@pre-commit install
 
-# >ê Testing & Quality
+# >ï¿½ Testing & Quality
 precommit: ## Run all pre-commit hooks (format, lint, type check) [quality]
 	@pre-commit run -a --show-diff-on-failure
 
@@ -57,17 +57,14 @@ type: ## Static type-check with mypy [type]
 test: install ## Run full test suite with pytest [test]
 	@$(UV) run pytest -q
 
-smoke: install ## Run minimal smoke test only [test]
-	@$(UV) run pytest -q tests/test_smoke.py -k smoke
-
-# =€ Trading Bot Execution
+# =ï¿½ Trading Bot Execution
 run: install ## Run the trading bot [bot]
-	@$(UV) run $(PY) bot/main.py
+	@$(UV) run $(PY) -m bot.main
 
 dev: install ## Run the trading bot in development mode [run]
-	@$(UV) run $(PY) bot/main.py --dev
+	@$(UV) run $(PY) -m bot.main --dev
 
-# =à  Other Utilities
+# =ï¿½  Other Utilities
 clean: ## Remove caches, build artifacts, and temp files
 	@rm -rf .pytest_cache .mypy_cache .ruff_cache dist build
 	@find . -type d -name __pycache__ -prune -exec rm -rf {} +
