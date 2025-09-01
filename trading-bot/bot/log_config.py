@@ -1,9 +1,11 @@
 """
 Logging configuration for the trading bot
 """
-import structlog
+
 import logging
 import sys
+
+import structlog
 
 
 def setup_logging():
@@ -13,7 +15,7 @@ def setup_logging():
         stream=sys.stdout,
         level=logging.INFO,
     )
-    
+
     structlog.configure(
         processors=[
             structlog.stdlib.filter_by_level,
@@ -24,7 +26,7 @@ def setup_logging():
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
             structlog.processors.UnicodeDecoder(),
-            structlog.processors.JSONRenderer()
+            structlog.processors.JSONRenderer(),
         ],
         context_class=dict,
         logger_factory=structlog.stdlib.LoggerFactory(),

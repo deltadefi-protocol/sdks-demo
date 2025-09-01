@@ -100,7 +100,6 @@ trading-bot/
     rate_limiter.py         # Token bucket rate limiter implementation
     config.py               # Pydantic settings (env + YAML)
     quote.py                # ±bps math, (optional) don't-cross clamp
-    signer.py               # sign(tx_hex) -> signed_tx (pluggable)
     deltadefi.py            # REST build/submit + Account WS (source of truth)
     oms.py                  # tiny FSM per side; uses repos below (one file)
     db/

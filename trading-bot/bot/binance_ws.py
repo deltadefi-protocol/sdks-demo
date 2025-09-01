@@ -5,10 +5,10 @@ Binance WebSocket client for book ticker streams using sidan-binance-py
 import asyncio
 import json
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
-import structlog
 from binance.websocket.spot.websocket_stream import SpotWebsocketStreamClient
+import structlog
 
 from .order_manager import OrderManager
 
@@ -16,9 +16,11 @@ logger = structlog.get_logger()
 
 
 class BinanceWebSocket:
-    def __init__(self, symbol: str = "adausdt", order_manager: Optional[OrderManager] = None):
+    def __init__(
+        self, symbol: str = "adausdt", order_manager: OrderManager | None = None
+    ):
         self.symbol = symbol.lower()
-        self.client: Optional[SpotWebsocketStreamClient] = None
+        self.client: SpotWebsocketStreamClient | None = None
         self.running = False
         self.order_manager = order_manager
 
@@ -66,15 +68,15 @@ class BinanceWebSocket:
                 data = json.loads(message)
             else:
                 data = message
-            
+
             # Only process book ticker data (ignore other message types)
-            if isinstance(data, dict) and 's' in data and 'b' in data and 'a' in data:
+            if isinstance(data, dict) and "s" in data and "b" in data and "a" in data:
                 self._handle_book_ticker(data)
-            
+
         except Exception as e:
             logger.error("Error in message handler", error=str(e), message=message)
 
-    def _handle_book_ticker(self, data: Dict[str, Any]):
+    def _handle_book_ticker(self, data: dict[str, Any]):
         """Handle book ticker data"""
         try:
             symbol = data.get("s", "").upper()
@@ -84,7 +86,7 @@ class BinanceWebSocket:
             ask_qty = float(data.get("A", 0))
 
             # Print WebSocket stream info (reduced frequency to avoid spam)
-            if not hasattr(self, '_last_print') or time.time() - self._last_print > 2.0:
+            if not hasattr(self, "_last_print") or time.time() - self._last_print > 2.0:
                 print(f"📈 {symbol} Book Ticker:")
                 print(f"   Bid: ${bid_price:.4f} (qty: {bid_qty:.2f})")
                 print(f"   Ask: ${ask_price:.4f} (qty: {ask_qty:.2f})")

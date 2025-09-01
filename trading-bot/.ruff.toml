@@ -1,35 +1,11 @@
-[project]
-name = "trading-bot"
-version = "0.1.0"
-description = "DeltaDeFi trading bot"
-readme = "README.md"
-requires-python = ">=3.11"
-dependencies = [
-    "pycardano>=0.12.0",
-    "aiohttp>=3.10.0",
-    "pydantic>=2.10.0",
-    "pydantic-settings>=2.7.0",
-    "python-dotenv>=1.0.0",
-    "structlog>=24.0.0",
-    "sidan-binance-py>=0.0.1",
-    "pyyaml>=6.0.0",
-]
+# Ruff configuration file for IDE integration
+# This ensures your IDE formatter matches `make lint` requirements
 
-[dependency-groups]
-dev = [
-    "pytest>=8.4.1",
-    "pytest-asyncio>=0.25.0",
-    "ruff>=0.12.10",
-    "mypy>=1.17.1",
-    "pre-commit>=4.0.0",
-]
-
-[tool.ruff]
 line-length = 88
 target-version = "py311"
 exclude = [
     ".git",
-    ".venv",
+    ".venv", 
     "__pycache__",
     "build",
     "dist",
@@ -38,10 +14,10 @@ exclude = [
     ".ruff_cache",
 ]
 
-[tool.ruff.lint]
+[lint]
 select = [
     "E",    # pycodestyle errors
-    "W",    # pycodestyle warnings
+    "W",    # pycodestyle warnings  
     "F",    # pyflakes
     "I",    # isort
     "N",    # pep8-naming
@@ -65,33 +41,18 @@ ignore = [
     "SIM108",  # Use ternary operator - sometimes if/else is clearer
 ]
 
-[tool.ruff.lint.isort]
+[lint.isort]
 known-first-party = ["bot"]
 force-sort-within-sections = true
 split-on-trailing-comma = true
 
-[tool.ruff.lint.per-file-ignores]
+[lint.per-file-ignores]
 "tests/*" = ["S101"]  # Allow assert statements in tests
 
-[tool.ruff.format]
+[format]
 quote-style = "double"
-indent-style = "space"
+indent-style = "space" 
 skip-magic-trailing-comma = false
 line-ending = "auto"
 docstring-code-format = true
 docstring-code-line-length = "dynamic"
-
-[tool.mypy]
-python_version = "3.11"
-strict = true
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = "test_*.py"
-python_classes = "Test*"
-python_functions = "test_*"
-asyncio_mode = "auto"
-addopts = "-v --tb=short"
