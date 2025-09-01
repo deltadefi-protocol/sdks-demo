@@ -51,21 +51,16 @@ class TradingConfig(BaseModel):
 class ExchangeConfig(BaseModel):
     """Exchange connection configuration"""
 
-    # Binance
-    binance_ws_url: str = Field(
-        default="wss://stream.binance.com:9443/ws", description="Binance WebSocket URL"
+    # DeltaDeFi API credentials
+    deltadefi_api_key: str = Field(default="", description="DeltaDeFi API key")
+    trading_password: str = Field(
+        default="", description="Trading password for operation key decryption"
     )
 
-    # DeltaDeFi
-    deltadefi_base_url: str = Field(
-        default="https://api-staging.deltadefi.io", description="DeltaDeFi API base URL"
-    )
-    deltadefi_api_key: str = Field(default="", description="DeltaDeFi API key")
-    deltadefi_ws_url: str | None = Field(
-        default=None,
-        description="DeltaDeFi WebSocket URL (derived from base URL if not provided)",
-    )
-    trading_password: str = Field(default="", description="Trading password for operation key decryption")
+    # URLs are hardcoded in DeltaDeFi SDK based on network mode:
+    # - testnet: api-staging.deltadefi.io, stream-staging.deltadefi.io
+    # - mainnet: api-dev.deltadefi.io, stream.deltadefi.io
+    # - binance: stream.binance.com:9443 (public WebSocket)
 
 
 class RiskConfig(BaseModel):
@@ -113,6 +108,8 @@ class Settings(BaseSettings):
         env_nested_delimiter="__",
         case_sensitive=False,
         extra="ignore",
+        yaml_file="config.yaml",  # Support YAML config file
+        yaml_file_encoding="utf-8",
     )
 
     # Nested configuration sections

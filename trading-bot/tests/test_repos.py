@@ -119,15 +119,15 @@ class TestSQLiteManager:
         """Test connection pooling behavior"""
         # Test that we can get multiple connections
         async with test_db.get_connection() as conn1, test_db.get_connection() as conn2:
-                # Both connections should be usable
-                result1 = await conn1.execute("SELECT 1 as test")
-                result2 = await conn2.execute("SELECT 1 as test")
+            # Both connections should be usable
+            result1 = await conn1.execute("SELECT 1 as test")
+            result2 = await conn2.execute("SELECT 1 as test")
 
-                row1 = await result1.fetchone()
-                row2 = await result2.fetchone()
+            row1 = await result1.fetchone()
+            row2 = await result2.fetchone()
 
-                assert row1["test"] == 1
-                assert row2["test"] == 1
+            assert row1["test"] == 1
+            assert row2["test"] == 1
 
     @pytest.mark.asyncio
     async def test_transaction_rollback(self, test_db):

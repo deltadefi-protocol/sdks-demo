@@ -1,0 +1,44 @@
+# Trading Bot Configuration
+# Non-secret settings that can be version controlled
+
+trading:
+  # Symbol configuration
+  symbol_src: ADAUSDT      # Binance source symbol
+  symbol_dst: ADAUSDM      # DeltaDeFi destination symbol
+  
+  # Spread configuration (basis points)
+  anchor_bps: 5            # Distance from Binance BBO
+  venue_spread_bps: 3      # Cross-venue risk buffer
+  
+  # Order configuration
+  qty: 100.0               # Order quantity in base units
+  side_enable: ["bid", "ask"]  # Which sides to quote
+  min_quote_size: 10.0     # Minimum quote size
+  max_open_notional: 5000.0  # Maximum open notional
+  
+  # Timing controls (milliseconds)
+  min_requote_ms: 100      # Minimum time between requotes
+  stale_ms: 5000          # Market data staleness threshold
+  requote_tick_threshold: 0.0001  # Minimum price change for requote
+
+risk:
+  # Position limits
+  max_position_size: 5000.0   # Maximum position in base units
+  max_daily_loss: 1000.0      # Daily loss limit
+  max_skew: 2000.0           # Maximum position skew
+  
+  # Risk controls
+  enable_oms: true           # Enable order management system
+  emergency_stop: false      # Emergency stop flag
+
+system:
+  # Performance settings
+  max_orders_per_second: 5.0    # Rate limiting
+  
+  # Database settings
+  enable_wal_mode: true         # SQLite WAL mode
+  connection_pool_size: 5       # DB connection pool
+  
+  # Monitoring
+  health_check_interval: 30     # Health check frequency (seconds)
+  metrics_export_interval: 60   # Metrics export frequency (seconds)
