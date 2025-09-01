@@ -3,8 +3,8 @@ Rate limiting utilities for DeltaDeFi order submission
 """
 
 import asyncio
-import time
 from collections import deque
+import time
 
 import structlog
 
