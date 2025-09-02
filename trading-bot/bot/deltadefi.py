@@ -322,20 +322,8 @@ class AccountWebSocket:
 
             logger.info("Connecting to DeltaDeFi WebSocket...")
             
-            # Connect WebSocket and wait for connection
-            await self._client.websocket.connect()
-            
-            # Wait a moment for connection to establish
-            import asyncio
-            await asyncio.sleep(0.5)
-            
-            # Verify connection before subscribing
-            if not self._client.websocket.is_connected:
-                raise ConnectionError("WebSocket failed to connect")
-            
-            logger.info("DeltaDeFi WebSocket connected, subscribing to account updates...")
-            
-            # Subscribe to account stream
+            # Connect and subscribe to account stream in one call
+            # This method handles the connection to the correct endpoint internally
             await self._client.websocket.subscribe_account()
 
             logger.info("Account WebSocket started and subscribed successfully")
