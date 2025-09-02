@@ -23,6 +23,9 @@ class BinanceWebSocket:
         self.client: SpotWebsocketStreamClient | None = None
         self.running = False
         self.order_manager = order_manager
+        self._on_message = None  # Allow custom message handler override
+        self._message_queue = asyncio.Queue()  # Queue for cross-thread communication
+        self._loop = None  # Store reference to main event loop
 
     async def start(self):
         """Start the WebSocket connection"""
@@ -31,13 +34,33 @@ class BinanceWebSocket:
             symbol=self.symbol.upper(),
         )
         self.running = True
+        
+        # Store reference to the current event loop
+        self._loop = asyncio.get_running_loop()
 
         try:
-            # Create WebSocket client with message handler
-            self.client = SpotWebsocketStreamClient(on_message=self._message_handler)
+            # Import the suppressor from main - if not available, create a dummy one
+            try:
+                from . import main
+                SuppressPrints = main.SuppressPrints
+            except (ImportError, AttributeError):
+                class SuppressPrints:
+                    def __enter__(self): return self
+                    def __exit__(self, exc_type, exc_val, exc_tb): pass
+                    
+            # Create WebSocket client with message handler (suppress any debug output)
+            with SuppressPrints():
+                self.client = SpotWebsocketStreamClient(
+                    on_message=self._message_handler,
+                    stream_url="wss://stream.binance.com:9443"  # Explicit URL to avoid debug prints
+                )
 
-            # Subscribe to book ticker for the symbol
-            self.client.book_ticker(symbol=self.symbol)
+                # Subscribe to book ticker for the symbol
+                self.client.book_ticker(symbol=self.symbol)
+
+            # Start message processor task
+            if self._on_message:
+                asyncio.create_task(self._message_processor())
 
             logger.info(
                 "✅ Connected to Binance WebSocket successfully",
@@ -79,6 +102,12 @@ class BinanceWebSocket:
     def _handle_book_ticker(self, data: dict[str, Any]):
         """Handle book ticker data"""
         try:
+            # If custom message handler is set, queue the message for processing
+            if self._on_message and self._loop:
+                # Use thread-safe method to put message in queue
+                self._loop.call_soon_threadsafe(self._message_queue.put_nowait, data)
+                return
+
             symbol = data.get("s", "").upper()
             bid_price = float(data.get("b", 0))
             bid_qty = float(data.get("B", 0))
@@ -110,3 +139,20 @@ class BinanceWebSocket:
 
         except (KeyError, ValueError, TypeError) as e:
             logger.error("Error parsing book ticker data", error=str(e), data=data)
+
+    async def _message_processor(self):
+        """Process messages from the queue using the custom handler"""
+        while self.running:
+            try:
+                # Wait for messages from the queue
+                data = await asyncio.wait_for(self._message_queue.get(), timeout=1.0)
+                
+                # Process the message with the custom handler
+                if self._on_message:
+                    await self._on_message(data)
+                    
+            except asyncio.TimeoutError:
+                # No messages in queue, continue
+                continue
+            except Exception as e:
+                logger.error("Error in message processor", error=str(e))

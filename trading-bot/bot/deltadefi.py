@@ -177,13 +177,17 @@ class DeltaDeFiClient:
 
         await self.rate_limiter.wait_for_token()
 
+        # Round price to 4 decimal places as required by DeltaDeFi
+        formatted_price = round(price, 4) if price is not None else None
+        
         logger.info(
             "Submitting order",
             symbol=symbol,
             side=side,
             type=order_type,
             quantity=quantity,
-            price=price,
+            price=formatted_price,
+            original_price=price,
             kwargs=kwargs,
         )
 
@@ -194,7 +198,7 @@ class DeltaDeFiClient:
                 side=side,  # SDK expects string, will handle conversion internally
                 type=order_type,  # SDK expects string, will handle conversion internally
                 quantity=quantity,
-                price=price,
+                price=formatted_price,
                 **kwargs,
             )
 
@@ -311,18 +315,37 @@ class AccountWebSocket:
         self._running = True
 
         try:
-            # Register account message handler
+            # Register account message handler first
             self._client.websocket.register_handler(
                 "account", self._handle_account_message
             )
 
+            logger.info("Connecting to DeltaDeFi WebSocket...")
+            
+            # Connect WebSocket and wait for connection
+            await self._client.websocket.connect()
+            
+            # Wait a moment for connection to establish
+            import asyncio
+            await asyncio.sleep(0.5)
+            
+            # Verify connection before subscribing
+            if not self._client.websocket.is_connected:
+                raise ConnectionError("WebSocket failed to connect")
+            
+            logger.info("DeltaDeFi WebSocket connected, subscribing to account updates...")
+            
             # Subscribe to account stream
             await self._client.websocket.subscribe_account()
 
-            logger.info("Account WebSocket started and subscribed")
+            logger.info("Account WebSocket started and subscribed successfully")
 
         except Exception as e:
             logger.error("Failed to start account WebSocket", error=str(e))
+            # Log additional debug info
+            logger.error("WebSocket debug info", 
+                        is_connected=getattr(self._client.websocket, 'is_connected', 'unknown'),
+                        subscriptions=getattr(self._client.websocket, 'subscriptions', {}))
             raise
 
     async def stop(self) -> None:

@@ -11,15 +11,19 @@ trading:
   venue_spread_bps: 3      # Cross-venue risk buffer
   
   # Order configuration
-  qty: 100.0               # Order quantity in base units
+  qty: 0.0                 # Set to 0 to use calculated sizing based on deployable capital
   side_enable: ["bid", "ask"]  # Which sides to quote
-  min_quote_size: 10.0     # Minimum quote size
+  min_quote_size: 10.0     # Minimum quote size (fallback for very small calculations)
   max_open_notional: 5000.0  # Maximum open notional
   
   # Timing controls (milliseconds)
   min_requote_ms: 100      # Minimum time between requotes
   stale_ms: 5000          # Market data staleness threshold
   requote_tick_threshold: 0.0001  # Minimum price change for requote
+  
+  # Quote management
+  quote_ttl_ms: 2000      # Quote time-to-live before replacement (2 seconds)
+  enable_aggressive_replacement: true  # Cancel existing orders immediately on price moves
 
 risk:
   # Position limits
@@ -29,6 +33,7 @@ risk:
   
   # Risk controls
   enable_oms: true           # Enable order management system
+  max_open_orders: 10        # Maximum number of open orders
   emergency_stop: false      # Emergency stop flag
 
 system:

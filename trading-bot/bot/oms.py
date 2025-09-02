@@ -186,10 +186,10 @@ class RiskManager:
         ):
             violations.append(f"Order quantity below minimum: {order.quantity}")
 
-        # Max open orders check (simple limit)
-        max_orders = 10  # Could be configurable
+        # Max open orders check (configurable limit)
+        max_orders = settings.risk.max_open_orders
         if self.open_order_count >= max_orders:
-            violations.append(f"Too many open orders: {self.open_order_count}")
+            violations.append(f"Too many open orders: {self.open_order_count}/{max_orders}")
 
         return len(violations) == 0, violations
 

@@ -46,6 +46,14 @@ class TradingConfig(BaseModel):
     stale_ms: int = Field(
         default=5000, description="Time before market data is considered stale"
     )
+    
+    # Quote management
+    quote_ttl_ms: int = Field(
+        default=2000, description="Quote time-to-live before replacement (milliseconds)"
+    )
+    enable_aggressive_replacement: bool = Field(
+        default=True, description="Cancel existing orders immediately on price moves"
+    )
 
 
 class ExchangeConfig(BaseModel):
@@ -72,6 +80,9 @@ class RiskConfig(BaseModel):
     )
     max_daily_loss: float = Field(
         default=1000.0, description="Maximum daily loss limit"
+    )
+    max_open_orders: int = Field(
+        default=10, description="Maximum number of open orders"
     )
     emergency_stop: bool = Field(default=False, description="Emergency stop flag")
 
@@ -152,5 +163,19 @@ class Settings(BaseSettings):
         return cls(**data)
 
 
-# Global settings instance
-settings = Settings()
+# Global settings instance - load from YAML if available
+import os
+from pathlib import Path
+import yaml
+
+def _load_settings():
+    """Load settings with YAML file support"""
+    yaml_path = Path("config.yaml")
+    if yaml_path.exists():
+        with open(yaml_path) as f:
+            yaml_data = yaml.safe_load(f)
+        return Settings(**yaml_data)
+    else:
+        return Settings()
+
+settings = _load_settings()

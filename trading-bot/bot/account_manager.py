@@ -658,9 +658,7 @@ class AccountManager:
             self.account_ws = AccountWebSocket(self.deltadefi_client._client)
 
             # Register message handlers
-            self.account_ws.add_message_handler(self._handle_account_update)
-            self.account_ws.add_fill_handler(self._handle_fill_update)
-            self.account_ws.add_balance_handler(self._handle_balance_update)
+            self.account_ws.add_account_callback(self._handle_account_update)
 
             await self.account_ws.start()
 
@@ -668,8 +666,10 @@ class AccountManager:
             self.connection_retry_count = 0
 
         except Exception as e:
-            logger.error("WebSocket connection failed", error=str(e))
-            await self._handle_websocket_error()
+            logger.warning("WebSocket connection failed, continuing without real-time account updates", error=str(e))
+            # Don't call _handle_websocket_error immediately - let the bot continue
+            # We can still do market making without real-time account updates
+            # The REST API can be used for balance checks if needed
 
     async def _handle_websocket_error(self):
         """Handle WebSocket connection errors with exponential backoff"""
@@ -804,7 +804,7 @@ class AccountManager:
 
         return {
             "running": self.running,
-            "websocket_connected": self.account_ws and self.account_ws.connected
+            "websocket_connected": self.account_ws.is_connected
             if self.account_ws
             else False,
             "connection_retry_count": self.connection_retry_count,

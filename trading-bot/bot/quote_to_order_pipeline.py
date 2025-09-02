@@ -345,8 +345,9 @@ class QuoteToOrderPipeline:
         """Stop the pipeline"""
         self.running = False
 
-        # Cancel active quotes
-        for quote in self.active_quotes.values():
+        # Cancel active quotes (create a copy to avoid dictionary size change during iteration)
+        active_quotes_copy = list(self.active_quotes.values())
+        for quote in active_quotes_copy:
             await self._cancel_quote(quote)
 
         self.active_quotes.clear()
@@ -358,6 +359,8 @@ class QuoteToOrderPipeline:
     ) -> PersistentQuote:
         """
         Main entry point: process a quote through the complete pipeline
+        
+        Implements active order replacement - cancels existing orders before submitting new ones
 
         Args:
             quote: Quote from the quote engine
@@ -373,6 +376,32 @@ class QuoteToOrderPipeline:
         persistent_quote = PersistentQuote.from_quote(quote, strategy)
 
         try:
+            # Step 0: Cancel existing active quotes/orders for this symbol (ORDER REPLACEMENT)
+            cancelled_count = await self.cancel_active_quotes_for_symbol(persistent_quote.symbol_dst)
+            
+            # Verify OMS order count after cancellation
+            current_order_count = self.oms.risk_manager.open_order_count if self.oms else 0
+            max_orders = settings.risk.max_open_orders
+            
+            if cancelled_count > 0:
+                logger.info(
+                    "Order replacement: cancelled existing quotes",
+                    symbol=persistent_quote.symbol_dst,
+                    cancelled_quotes=cancelled_count,
+                    new_quote_id=persistent_quote.quote_id,
+                    order_count_after_cancel=current_order_count,
+                    max_orders=max_orders
+                )
+            
+            # Safety check: ensure we have room for new orders
+            orders_to_create = len([s for s in settings.trading.side_enable if s in ["bid", "ask"]])
+            if current_order_count + orders_to_create > max_orders:
+                raise ValueError(
+                    f"Cannot create {orders_to_create} new orders: would exceed limit "
+                    f"({current_order_count} + {orders_to_create} > {max_orders}). "
+                    f"Order replacement may have failed."
+                )
+
             # Step 1: Persist quote to database
             await self._persist_quote(persistent_quote)
 
@@ -381,16 +410,27 @@ class QuoteToOrderPipeline:
 
             # Step 3: Track active quote
             self.active_quotes[persistent_quote.quote_id] = persistent_quote
+            
+            # Step 4: Validate we only have one active quote per symbol (safety check)
+            active_for_symbol = [q for q in self.active_quotes.values() if q.symbol_dst == persistent_quote.symbol_dst]
+            if len(active_for_symbol) > 1:
+                logger.warning(
+                    "Multiple active quotes detected for symbol - this should not happen with order replacement",
+                    symbol=persistent_quote.symbol_dst,
+                    active_count=len(active_for_symbol),
+                    quote_ids=[q.quote_id for q in active_for_symbol]
+                )
 
             self.quotes_processed += 1
 
             logger.info(
-                "Quote processed successfully",
+                "Quote processed successfully with order replacement",
                 quote_id=persistent_quote.quote_id,
                 symbol=persistent_quote.symbol_dst,
                 strategy=strategy,
                 has_bid=persistent_quote.has_bid,
                 has_ask=persistent_quote.has_ask,
+                replaced_quotes=cancelled_count,
             )
 
             # Notify callbacks
@@ -550,11 +590,24 @@ class QuoteToOrderPipeline:
                 await self.rate_limiter.wait_for_token()
 
                 # Convert OMS order to DeltaDeFi format
+                # Round quantity to integer for DeltaDeFi (should be close to integer for our sizing)
+                quantity_int = round(float(order.quantity))
+                
+                logger.debug(
+                    "Submitting order to DeltaDeFi",
+                    order_id=order.order_id,
+                    symbol=order.symbol,
+                    side=order.side.value,
+                    quantity_original=float(order.quantity),
+                    quantity_rounded=quantity_int,
+                    price=float(order.price) if order.price else None,
+                )
+                
                 result = await self.deltadefi_client.submit_order(
                     symbol=order.symbol,
                     side=order.side.value,
                     order_type=order.order_type.value,
-                    quantity=int(order.quantity),  # DeltaDeFi expects int
+                    quantity=quantity_int,
                     price=float(order.price) if order.price else None,
                 )
 
@@ -608,12 +661,35 @@ class QuoteToOrderPipeline:
 
     async def _cancel_quote(self, quote: PersistentQuote):
         """Cancel a quote and its associated orders"""
+        cancelled_orders = []
+        
         try:
+            # Get OMS order count before cancellation for verification
+            initial_order_count = self.oms.risk_manager.open_order_count if self.oms else 0
+            
             # Cancel orders in OMS
             if quote.bid_order_id:
                 await self.oms.cancel_order(quote.bid_order_id, "Quote cancelled")
+                cancelled_orders.append(quote.bid_order_id)
             if quote.ask_order_id:
-                await self.oms.cancel_order(quote.ask_order_id, "Quote cancelled")
+                await self.oms.cancel_order(quote.ask_order_id, "Quote cancelled")  
+                cancelled_orders.append(quote.ask_order_id)
+
+            # Verify order count decreased properly
+            final_order_count = self.oms.risk_manager.open_order_count if self.oms else 0
+            expected_decrease = len(cancelled_orders)
+            actual_decrease = initial_order_count - final_order_count
+            
+            if actual_decrease != expected_decrease:
+                logger.warning(
+                    "Order count mismatch after cancellation",
+                    quote_id=quote.quote_id,
+                    expected_decrease=expected_decrease,
+                    actual_decrease=actual_decrease,
+                    initial_count=initial_order_count,
+                    final_count=final_order_count,
+                    cancelled_orders=cancelled_orders
+                )
 
             # Update quote status
             quote.status = QuoteStatus.CANCELLED
@@ -621,11 +697,20 @@ class QuoteToOrderPipeline:
                 quote.quote_id, QuoteStatus.CANCELLED
             )
 
-            logger.info("Quote cancelled", quote_id=quote.quote_id)
+            logger.info(
+                "Quote cancelled successfully", 
+                quote_id=quote.quote_id,
+                cancelled_orders=cancelled_orders,
+                order_count_before=initial_order_count,
+                order_count_after=final_order_count
+            )
 
         except Exception as e:
             logger.error(
-                "Error cancelling quote", quote_id=quote.quote_id, error=str(e)
+                "Error cancelling quote", 
+                quote_id=quote.quote_id, 
+                error=str(e),
+                cancelled_orders=cancelled_orders
             )
 
     async def _on_order_update(self, order: OMSOrder):
@@ -669,6 +754,70 @@ class QuoteToOrderPipeline:
         # Notify callbacks
         await self._notify_order_callbacks(order)
 
+    async def cancel_active_quotes_for_symbol(self, symbol_dst: str) -> int:
+        """Cancel all active quotes and their orders for a specific symbol
+        
+        This is used for order replacement - cancel existing orders before submitting new ones
+        """
+        cancelled_count = 0
+        
+        try:
+            # Get initial state for verification
+            initial_active_count = len(self.active_quotes)
+            initial_order_count = self.oms.risk_manager.open_order_count if self.oms else 0
+            
+            # Find all active quotes for this symbol
+            quotes_to_cancel = []
+            for quote_id, quote in list(self.active_quotes.items()):
+                if quote.symbol_dst == symbol_dst and quote.status in [
+                    QuoteStatus.PERSISTED, QuoteStatus.ORDERS_CREATED, QuoteStatus.ORDERS_SUBMITTED
+                ]:
+                    quotes_to_cancel.append(quote)
+            
+            if quotes_to_cancel:
+                logger.info(
+                    "Starting order replacement cancellation",
+                    symbol=symbol_dst,
+                    quotes_to_cancel=len(quotes_to_cancel),
+                    quote_ids=[q.quote_id for q in quotes_to_cancel],
+                    initial_active_quotes=initial_active_count,
+                    initial_order_count=initial_order_count
+                )
+            
+            # Cancel each quote and its orders
+            for quote in quotes_to_cancel:
+                await self._cancel_quote(quote)
+                self.active_quotes.pop(quote.quote_id, None)
+                cancelled_count += 1
+            
+            # Verify final state
+            final_active_count = len(self.active_quotes)
+            final_order_count = self.oms.risk_manager.open_order_count if self.oms else 0
+            
+            if cancelled_count > 0:
+                logger.info(
+                    "Order replacement cancellation completed",
+                    symbol=symbol_dst,
+                    cancelled_count=cancelled_count,
+                    active_quotes_before=initial_active_count,
+                    active_quotes_after=final_active_count,
+                    order_count_before=initial_order_count,
+                    order_count_after=final_order_count,
+                    orders_freed=initial_order_count - final_order_count
+                )
+            else:
+                logger.debug(
+                    "No active quotes found to cancel for symbol",
+                    symbol=symbol_dst,
+                    current_active_quotes=final_active_count
+                )
+            
+            return cancelled_count
+            
+        except Exception as e:
+            logger.error("Error cancelling active quotes", symbol=symbol_dst, error=str(e))
+            return cancelled_count
+
     async def cleanup_expired_quotes(self) -> int:
         """Clean up expired quotes"""
         expired_count = 0
@@ -707,6 +856,12 @@ class QuoteToOrderPipeline:
 
     async def get_pipeline_stats(self) -> dict[str, Any]:
         """Get pipeline performance statistics"""
+        # Count active quotes per symbol
+        quotes_by_symbol = {}
+        for quote in self.active_quotes.values():
+            symbol = quote.symbol_dst
+            quotes_by_symbol[symbol] = quotes_by_symbol.get(symbol, 0) + 1
+        
         return {
             "running": self.running,
             "quotes_processed": self.quotes_processed,
@@ -715,6 +870,7 @@ class QuoteToOrderPipeline:
             "orders_submitted": self.orders_submitted,
             "orders_failed": self.orders_failed,
             "active_quotes_count": len(self.active_quotes),
+            "active_quotes_by_symbol": quotes_by_symbol,  # New field for monitoring
             "active_quotes": [
                 {
                     "quote_id": q.quote_id,

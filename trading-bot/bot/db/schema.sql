@@ -10,6 +10,7 @@ PRAGMA foreign_keys = ON;
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS quotes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    quote_id TEXT NOT NULL UNIQUE,              -- UUID for quote identification
     timestamp REAL NOT NULL,                    -- Unix timestamp when quote was generated
     symbol_src TEXT NOT NULL,                   -- Source symbol (e.g., "ADAUSDT")  
     symbol_dst TEXT NOT NULL,                   -- Destination symbol (e.g., "ADAUSDM")
@@ -26,17 +27,31 @@ CREATE TABLE IF NOT EXISTS quotes (
     ask_price REAL,                             -- NULL if ask side disabled
     ask_qty REAL,                               -- NULL if ask side disabled
     
+    -- Order tracking
+    bid_order_id TEXT,                          -- Order ID for bid side
+    ask_order_id TEXT,                          -- Order ID for ask side
+    
+    -- Status tracking
+    status TEXT NOT NULL DEFAULT 'generated' CHECK (
+        status IN ('generated', 'persisted', 'orders_created', 'orders_submitted', 'expired', 'cancelled')
+    ),
+    
     -- Metadata
     spread_bps REAL,                            -- Calculated spread in basis points
     mid_price REAL,                             -- Mid price from generated quote
     total_spread_bps INTEGER NOT NULL,          -- Total spread used (anchor + venue)
     sides_enabled TEXT NOT NULL,                -- JSON array of enabled sides
+    strategy TEXT DEFAULT 'market_maker',       -- Trading strategy used
     
-    created_at REAL NOT NULL DEFAULT (unixepoch())
+    created_at REAL NOT NULL DEFAULT (unixepoch()),
+    updated_at REAL NOT NULL DEFAULT (unixepoch()),
+    expires_at REAL                                 -- When quote expires (unix timestamp)
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_quotes_quote_id ON quotes(quote_id);
 CREATE INDEX IF NOT EXISTS idx_quotes_timestamp ON quotes(timestamp);
 CREATE INDEX IF NOT EXISTS idx_quotes_symbol_dst ON quotes(symbol_dst);
+CREATE INDEX IF NOT EXISTS idx_quotes_status ON quotes(status);
 CREATE INDEX IF NOT EXISTS idx_quotes_created_at ON quotes(created_at);
 
 -- ============================================================================
@@ -46,7 +61,7 @@ CREATE INDEX IF NOT EXISTS idx_quotes_created_at ON quotes(created_at);
 CREATE TABLE IF NOT EXISTS orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     order_id TEXT NOT NULL UNIQUE,              -- Client-side order ID (UUID)
-    quote_id INTEGER,                           -- Reference to originating quote
+    quote_id TEXT,                              -- Reference to originating quote (UUID)
     
     -- Order details
     symbol TEXT NOT NULL,                       -- Trading symbol (e.g., "ADAUSDM")
@@ -80,7 +95,7 @@ CREATE TABLE IF NOT EXISTS orders (
     error_message TEXT,
     retry_count INTEGER NOT NULL DEFAULT 0,
     
-    FOREIGN KEY (quote_id) REFERENCES quotes(id)
+    FOREIGN KEY (quote_id) REFERENCES quotes(quote_id)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_order_id ON orders(order_id);
@@ -253,7 +268,7 @@ SELECT
     q.spread_bps as quote_spread_bps,
     (o.quantity - o.filled_quantity) as remaining_qty
 FROM orders o
-LEFT JOIN quotes q ON o.quote_id = q.id
+LEFT JOIN quotes q ON o.quote_id = q.quote_id
 WHERE o.status IN ('pending', 'submitted', 'partially_filled');
 
 -- Recent quotes with orders
@@ -263,8 +278,8 @@ SELECT
     COUNT(o.id) as order_count,
     SUM(CASE WHEN o.status = 'filled' THEN 1 ELSE 0 END) as filled_count
 FROM quotes q
-LEFT JOIN orders o ON q.id = o.quote_id
-GROUP BY q.id;
+LEFT JOIN orders o ON q.quote_id = o.quote_id
+GROUP BY q.quote_id;
 
 -- Daily trading summary
 CREATE VIEW IF NOT EXISTS v_daily_summary AS

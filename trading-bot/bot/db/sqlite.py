@@ -73,15 +73,59 @@ class SQLiteManager:
         self._initialized = True
         logger.info("Database initialized successfully")
 
+    async def apply_schema(self) -> None:
+        """Apply database schema (called during initialization)"""
+        # Schema is already applied during initialize()
+        # This method exists for compatibility with main.py
+        if not self._initialized:
+            await self.initialize()
+        logger.debug("Database schema is up to date")
+
     async def _run_migrations(self, conn: aiosqlite.Connection) -> None:
         """Run database schema migrations"""
         try:
             if not self.schema_path.exists():
                 raise MigrationError(f"Schema file not found: {self.schema_path}")
 
+            # Check if we need to migrate by checking if quote_id column exists
+            cursor = await conn.execute("PRAGMA table_info(quotes)")
+            columns = await cursor.fetchall()
+            await cursor.close()
+            
+            has_quote_id = any(column[1] == 'quote_id' for column in columns)
+            
+            if not has_quote_id and columns:
+                # Need to migrate existing schema - drop and recreate
+                logger.info("Migrating database schema - dropping existing tables")
+                
+                # Drop views first (they depend on tables)
+                drop_views = [
+                    "DROP VIEW IF EXISTS v_active_orders",
+                    "DROP VIEW IF EXISTS v_quotes_with_orders", 
+                    "DROP VIEW IF EXISTS v_daily_summary"
+                ]
+                
+                for sql in drop_views:
+                    await conn.execute(sql)
+                
+                # Drop tables (in reverse dependency order)
+                drop_tables = [
+                    "DROP TABLE IF EXISTS fills",
+                    "DROP TABLE IF EXISTS orders", 
+                    "DROP TABLE IF EXISTS quotes",
+                    "DROP TABLE IF EXISTS outbox",
+                    "DROP TABLE IF EXISTS positions",
+                    "DROP TABLE IF EXISTS account_balances",
+                    "DROP TABLE IF EXISTS trading_sessions"
+                ]
+                
+                for sql in drop_tables:
+                    await conn.execute(sql)
+                
+                logger.info("Existing tables dropped, creating new schema")
+            
+            # Read and execute new schema
             schema_sql = self.schema_path.read_text()
-
-            # Execute schema in transaction
             await conn.executescript(schema_sql)
 
             logger.info("Database schema migrations completed")

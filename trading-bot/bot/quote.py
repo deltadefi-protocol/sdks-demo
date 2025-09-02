@@ -140,8 +140,21 @@ class QuoteEngine:
         # Round to appropriate precision
         bid_price = self._round_price(bid_price)
 
-        # Apply size limits
-        bid_qty = min(settings.trading.qty, settings.trading.min_quote_size)
+        # Calculate order size based on max position size and max orders
+        # Each order should be roughly max_position_size / max_open_orders
+        max_orders = settings.risk.max_open_orders
+        target_notional_per_order = settings.risk.max_position_size / max_orders
+        
+        # Calculate quantity based on target notional and bid price
+        bid_qty = target_notional_per_order / bid_price
+        
+        # Apply minimum size constraints
+        bid_qty = max(bid_qty, settings.trading.min_quote_size)
+        
+        # Apply max order size limit only if configured (qty > 0)
+        # If qty is 0, use full calculated size to maximize capital utilization
+        if hasattr(settings.trading, 'qty') and settings.trading.qty > 0:
+            bid_qty = min(bid_qty, settings.trading.qty)
 
         return bid_price, bid_qty
 
@@ -159,8 +172,21 @@ class QuoteEngine:
         # Round to appropriate precision
         ask_price = self._round_price(ask_price)
 
-        # Apply size limits
-        ask_qty = min(settings.trading.qty, settings.trading.min_quote_size)
+        # Calculate order size based on max position size and max orders
+        # Each order should be roughly max_position_size / max_open_orders
+        max_orders = settings.risk.max_open_orders
+        target_notional_per_order = settings.risk.max_position_size / max_orders
+        
+        # Calculate quantity based on target notional and ask price
+        ask_qty = target_notional_per_order / ask_price
+        
+        # Apply minimum size constraints
+        ask_qty = max(ask_qty, settings.trading.min_quote_size)
+        
+        # Apply max order size limit only if configured (qty > 0)
+        # If qty is 0, use full calculated size to maximize capital utilization
+        if hasattr(settings.trading, 'qty') and settings.trading.qty > 0:
+            ask_qty = min(ask_qty, settings.trading.qty)
 
         return ask_price, ask_qty
 
