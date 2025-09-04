@@ -3,7 +3,11 @@
     "allow": [
       "mcp__github__get_file_contents",
       "Bash(sqlite3:*)",
-      "Read(/Users/whatever/Desktop/WorkDev/deltadefi/sdks/python-sdk/**)"
+      "Read(/Users/whatever/Desktop/WorkDev/deltadefi/sdks/python-sdk/**)",
+      "Bash(make:*)",
+      "Bash(timeout 45 make run)",
+      "Bash(python test:*)",
+      "Read(/Users/whatever/Desktop/WorkDev/deltadefi/**)"
     ],
     "deny": [],
     "ask": []

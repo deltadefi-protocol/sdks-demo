@@ -1355,16 +1355,16 @@ wheels = [
 
 [[package]]
 name = "sidan-binance-py"
-version = "0.0.1"
+version = "0.0.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pycryptodome" },
     { name = "requests" },
     { name = "websocket-client" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5e/81/1efb0c75c3cac56e9b685593db81a37938ead1a12cd6d1fa4cb9dc3f321f/sidan_binance_py-0.0.1.tar.gz", hash = "sha256:cab8651ce465f3c232a50d632a9bbdfd2201e558ea0e1fe8b3d6daf6846899f2", size = 207115, upload-time = "2025-08-31T21:43:36.519Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/17/ea/04d30a99efd87a92c28bfec35894263564fccdee0fb7941fcccc0265b407/sidan_binance_py-0.0.2.tar.gz", hash = "sha256:79976760a4ce9f658c2dbb2a8e368e3c675b18d1345c6e49bcff98ec2eae3d00", size = 207108, upload-time = "2025-09-02T00:25:03.305Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2a/27/b7ee91902982e363f413f991d455d79b2ab37a06f5b75dceed89b00c7de3/sidan_binance_py-0.0.1-py3-none-any.whl", hash = "sha256:eea7c463aabc49cff4937bd142e1b90f4c9a45970395d24a08c5be11baa80da7", size = 86462, upload-time = "2025-08-31T21:43:35.078Z" },
+    { url = "https://files.pythonhosted.org/packages/32/8d/b4aa6fa77ddc8caa3f69761c986cebb76df9ee9ed81259d0a4082ed47ae5/sidan_binance_py-0.0.2-py3-none-any.whl", hash = "sha256:623ad1fd389fd868fe81f66344eaa51f06fa13197e27f99e009754f39e0721d7", size = 86446, upload-time = "2025-09-02T00:25:02.305Z" },
 ]
 
 [[package]]
@@ -1436,7 +1436,7 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.7.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "pyyaml", specifier = ">=6.0.0" },
-    { name = "sidan-binance-py", specifier = ">=0.0.1" },
+    { name = "sidan-binance-py", specifier = ">=0.0.2" },
     { name = "structlog", specifier = ">=24.0.0" },
 ]
 

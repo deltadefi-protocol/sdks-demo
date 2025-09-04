@@ -223,11 +223,12 @@ class DeltaDeFiClient:
             )
             raise
 
-    async def cancel_order(self, order_id: str, **kwargs) -> dict:
+    async def cancel_order(self, order_id: str, symbol: str | None = None, **kwargs) -> dict:
         """Cancel an order
 
         Args:
             order_id: Order ID to cancel
+            symbol: Trading symbol (optional, for logging)
             **kwargs: Additional parameters
 
         Returns:
@@ -241,7 +242,7 @@ class DeltaDeFiClient:
 
         await self.rate_limiter.wait_for_token()
 
-        logger.info("Cancelling order", order_id=order_id)
+        logger.info("Cancelling order", order_id=order_id, symbol=symbol)
 
         try:
             result = self._client.cancel_order(order_id=order_id, **kwargs)
@@ -250,6 +251,7 @@ class DeltaDeFiClient:
                 "Order cancelled successfully",
                 result=result,
                 order_id=order_id,
+                symbol=symbol,
             )
 
             return result
@@ -258,6 +260,106 @@ class DeltaDeFiClient:
             logger.error(
                 "Failed to cancel order",
                 order_id=order_id,
+                symbol=symbol,
+                error=str(e),
+            )
+            raise
+
+    async def get_open_orders(self, symbol: str | None = None) -> list[dict]:
+        """Get open orders from DeltaDeFi
+
+        Args:
+            symbol: Optional symbol to filter orders (e.g., "ADAUSDM")
+
+        Returns:
+            List of open orders
+
+        Raises:
+            ValueError: If operation key is not loaded
+        """
+        if not self._operation_key_loaded:
+            raise ValueError("Operation key not loaded - cannot get orders")
+
+        logger.debug("Getting open orders", symbol=symbol)
+
+        try:
+            # Use pagination to fetch ALL open orders (up to 250 per request)
+            all_orders = []
+            page = 1
+            
+            while True:
+                # Get orders for current page with maximum limit
+                result = self._client.accounts.get_order_records(
+                    status="openOrder", 
+                    limit=250,  # Maximum per request
+                    page=page
+                )
+                
+                # Extract orders from the response - handle nested structure
+                page_orders = []
+                if hasattr(result, 'data') and result.data:
+                    # SDK response object with data attribute
+                    data = result.data
+                    if isinstance(data, list) and len(data) > 0 and 'orders' in data[0]:
+                        page_orders = data[0]['orders']
+                    else:
+                        page_orders = data if isinstance(data, list) else []
+                elif isinstance(result, dict) and 'data' in result:
+                    # Dict response with nested structure
+                    data = result['data']
+                    if isinstance(data, list) and len(data) > 0 and 'orders' in data[0]:
+                        page_orders = data[0]['orders']
+                    else:
+                        page_orders = data if isinstance(data, list) else []
+                elif isinstance(result, list):
+                    # Direct list of orders
+                    page_orders = result
+                else:
+                    logger.warning("Unexpected response format from get_order_records", result_type=type(result), result=result)
+                    page_orders = []
+                
+                if not page_orders:
+                    # No more orders on this page, we're done
+                    break
+                    
+                all_orders.extend(page_orders)
+                
+                # Check if we have more pages
+                total_pages = 1
+                if hasattr(result, 'total_page'):
+                    total_pages = result.total_page
+                elif isinstance(result, dict) and 'total_page' in result:
+                    total_pages = result['total_page']
+                
+                if page >= total_pages:
+                    # We've fetched all pages
+                    break
+                    
+                page += 1
+                
+            orders = all_orders
+            
+            # Filter by symbol if provided
+            if symbol:
+                filtered_orders = []
+                for order in orders:
+                    order_symbol = order.get('symbol') if isinstance(order, dict) else getattr(order, 'symbol', None)
+                    if order_symbol == symbol:
+                        filtered_orders.append(order)
+                orders = filtered_orders
+            
+            logger.info(
+                "Open orders retrieved successfully",
+                symbol=symbol,
+                total_count=len(orders)
+            )
+            
+            return orders
+
+        except Exception as e:
+            logger.error(
+                "Failed to get open orders",
+                symbol=symbol,
                 error=str(e),
             )
             raise

@@ -586,6 +586,30 @@ class OrderManagementSystem:
         """Get all positions"""
         return list(self.positions.values())
 
+    def get_actual_open_order_count(self) -> int:
+        """Get the actual count of open orders by checking order states"""
+        open_count = 0
+        for order in self.orders.values():
+            if order.state == OrderState.WORKING:
+                open_count += 1
+        return open_count
+
+    def sync_open_order_count(self) -> int:
+        """Synchronize the risk manager's open order count with actual order states"""
+        actual_count = self.get_actual_open_order_count()
+        old_count = self.risk_manager.open_order_count
+        self.risk_manager.open_order_count = actual_count
+        
+        if old_count != actual_count:
+            logger.info(
+                "Synchronized open order count",
+                old_count=old_count,
+                actual_count=actual_count,
+                difference=actual_count - old_count
+            )
+        
+        return actual_count
+
     def get_portfolio_summary(self) -> dict:
         """Get portfolio summary"""
         total_notional = sum(pos.notional_value for pos in self.positions.values())

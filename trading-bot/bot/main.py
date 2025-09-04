@@ -29,6 +29,8 @@ from .oms import OrderManagementSystem
 from .quote import QuoteEngine, create_book_ticker_from_binance
 from .quote_to_order_pipeline import QuoteToOrderPipeline
 from .rate_limiter import TokenBucketRateLimiter
+from .unregistered_order_cleanup import UnregisteredOrderCleanupService
+from .asset_ratio_manager import AssetRatioManager
 
 # Setup logging first
 setup_logging()
@@ -77,6 +79,8 @@ class TradingBot:
         self.quote_engine: QuoteEngine | None = None
         self.quote_pipeline: QuoteToOrderPipeline | None = None
         self.outbox_worker: OutboxWorker | None = None
+        self.cleanup_service: UnregisteredOrderCleanupService | None = None
+        self.asset_ratio_manager: AssetRatioManager | None = None
         
         # Market data
         self.binance_ws: BinanceWebSocket | None = None
@@ -121,10 +125,11 @@ class TradingBot:
             
             logger.info(
                 "✅ Trading Bot System Started Successfully",
-                components_initialized=7,
+                components_initialized=8,  # Updated to include cleanup service
                 database_ready=True,
                 market_data_connected=True,
                 deltadefi_ready=self.deltadefi_client._operation_key_loaded if self.deltadefi_client else False,
+                cleanup_service_enabled=settings.system.cleanup_unregistered_orders,
             )
             
         except Exception as e:
@@ -167,23 +172,36 @@ class TradingBot:
         # 3. Account Manager for real-time balance/fill tracking
         self.account_manager = AccountManager(self.deltadefi_client)
         
-        # 4. Quote Engine for price generation
-        self.quote_engine = QuoteEngine()
+        # 4. Asset Ratio Manager for ratio balancing
+        self.asset_ratio_manager = AssetRatioManager()
         
-        # 5. Quote-to-Order Pipeline
+        # 5. Quote Engine for price generation (with asset ratio manager)
+        self.quote_engine = QuoteEngine(asset_ratio_manager=self.asset_ratio_manager)
+        
+        # 6. Quote-to-Order Pipeline
         self.quote_pipeline = QuoteToOrderPipeline(
             oms=self.oms,
             deltadefi_client=self.deltadefi_client,
         )
         
-        # 6. Outbox Worker for reliable event processing
+        # 7. Outbox Worker for reliable event processing
         self.outbox_worker = OutboxWorker()
+        
+        # 8. Unregistered Order Cleanup Service
+        self.cleanup_service = UnregisteredOrderCleanupService(
+            deltadefi_client=self.deltadefi_client,
+            oms=self.oms
+        )
         
         logger.info("✅ Core components initialized")
     
     async def _start_services(self):
         """Start background services"""
         logger.info("🏃 Starting background services...")
+        
+        # Run initial cleanup BEFORE starting any trading services
+        # This ensures all unregistered orders are cancelled before new ones are placed
+        await self.cleanup_service.run_initial_cleanup()
         
         # Start Account Manager (WebSocket + balance tracking)
         # Note: Account manager will handle DeltaDeFi WebSocket internally
@@ -199,6 +217,9 @@ class TradingBot:
         
         # Start Outbox Worker for reliable event processing (as background task)
         asyncio.create_task(self.outbox_worker.start())
+        
+        # Start Unregistered Order Cleanup Service (for ongoing periodic cleanup)
+        await self.cleanup_service.start()
         
         # Setup callbacks for integration
         self._setup_callbacks()
@@ -359,6 +380,10 @@ class TradingBot:
             await self.outbox_worker.stop()
             logger.debug("✅ Outbox worker stopped")
         
+        if self.cleanup_service:
+            await self.cleanup_service.stop()
+            logger.debug("✅ Cleanup service stopped")
+        
         if self.account_manager:
             await self.account_manager.stop()
             logger.debug("✅ Account manager stopped")
@@ -444,6 +469,15 @@ class TradingBot:
                 "fills_processed": account_summary["fills_processed"],
             })
         
+        # Cleanup service status
+        if self.cleanup_service:
+            cleanup_stats = self.cleanup_service.get_stats()
+            status.update({
+                "cleanup_enabled": cleanup_stats["enabled"],
+                "cleanup_runs": cleanup_stats["cleanup_runs"],
+                "unregistered_orders_cancelled": cleanup_stats["orders_cancelled"],
+                "cleanup_errors": cleanup_stats["cleanup_errors"],
+            })
         
         logger.info("📊 Trading Bot System Status", **status)
 

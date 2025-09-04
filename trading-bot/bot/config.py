@@ -16,16 +16,35 @@ class TradingConfig(BaseModel):
     symbol_dst: str = Field(
         default="ADAUSDM", description="Destination symbol (DeltaDeFi)"
     )
+    
+    # Multi-layer strategy parameters
+    base_spread_bps: int = Field(
+        default=8, description="Starting spread from reference price in basis points"
+    )
+    tick_spread_bps: int = Field(
+        default=10, description="Incremental spread between layers in basis points"
+    )
+    num_layers: int = Field(
+        default=10, description="Number of layers per side"
+    )
+    layer_liquidity_multiplier: float = Field(
+        default=1.0, description="Liquidity growth factor per layer (1.0 = 100%)"
+    )
+    total_liquidity: float = Field(
+        default=5000.0, description="Total liquidity to distribute across all layers"
+    )
+    
+    # Legacy parameters (keep for backwards compatibility)
     anchor_bps: int = Field(
-        default=5, description="Distance from Binance BBO in basis points"
+        default=5, description="Distance from Binance BBO in basis points (legacy)"
     )
     venue_spread_bps: int = Field(
-        default=3, description="Extra buffer for cross-venue risk in basis points"
+        default=3, description="Extra buffer for cross-venue risk in basis points (legacy)"
     )
     side_enable: list[str] = Field(
         default=["bid", "ask"], description="Which sides to quote"
     )
-    qty: float = Field(default=100.0, description="Order quantity in ADA units")
+    qty: float = Field(default=100.0, description="Order quantity in ADA units (legacy)")
     max_skew: float = Field(
         default=2000.0, description="Maximum position skew in ADA before pausing"
     )
@@ -53,6 +72,26 @@ class TradingConfig(BaseModel):
     )
     enable_aggressive_replacement: bool = Field(
         default=True, description="Cancel existing orders immediately on price moves"
+    )
+    
+    # Asset ratio management parameters
+    target_asset_ratio: float = Field(
+        default=1.0, description="Target USDM:ADA value ratio (1.0 = 1:1)"
+    )
+    ratio_tolerance: float = Field(
+        default=0.1, description="Acceptable deviation from target ratio (0.1 = 10%)"
+    )
+    spread_adjustment_factor: float = Field(
+        default=2.0, description="Multiplier for spread adjustment when out of ratio"
+    )
+    liquidity_adjustment_factor: float = Field(
+        default=1.5, description="Multiplier for liquidity size adjustment when out of ratio"
+    )
+    use_full_capital: bool = Field(
+        default=True, description="Deploy 100% of available capital for market making"
+    )
+    capital_reserve_ratio: float = Field(
+        default=0.02, description="Percentage of capital to keep as reserve (0.02 = 2%)"
     )
 
 
@@ -82,7 +121,10 @@ class RiskConfig(BaseModel):
         default=1000.0, description="Maximum daily loss limit"
     )
     max_open_orders: int = Field(
-        default=10, description="Maximum number of open orders"
+        default=20, description="Maximum number of open orders (increased for multi-layer)"
+    )
+    max_layers_per_side: int = Field(
+        default=10, description="Maximum layers allowed per side for risk control"
     )
     emergency_stop: bool = Field(default=False, description="Emergency stop flag")
 
@@ -107,6 +149,17 @@ class SystemConfig(BaseModel):
     )
     max_reconnect_attempts: int = Field(
         default=10, description="Maximum reconnection attempts"
+    )
+    
+    # Order management
+    cleanup_unregistered_orders: bool = Field(
+        default=True, description="Cancel orders not in database"
+    )
+    cleanup_check_interval_ms: int = Field(
+        default=30000, description="Interval for checking unregistered orders"
+    )
+    order_registration_timeout_ms: int = Field(
+        default=5000, description="Timeout for order registration in database"
     )
 
 

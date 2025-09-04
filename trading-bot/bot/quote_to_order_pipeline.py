@@ -26,7 +26,7 @@ from bot.db.sqlite import db_manager
 from bot.deltadefi import DeltaDeFiClient
 from bot.oms import OMSOrder, OrderManagementSystem, OrderSide, OrderState
 from bot.oms import OrderType as OMSOrderType
-from bot.quote import Quote
+from bot.quote import Quote, LayeredQuote
 from bot.rate_limiter import TokenBucketRateLimiter
 
 logger = structlog.get_logger()
@@ -67,12 +67,16 @@ class PersistentQuote:
     source_ask_price: Decimal = Decimal("0")
     source_ask_qty: Decimal = Decimal("0")
 
-    # Generated quote
+    # Generated quote (legacy single-layer support)
     bid_price: Decimal | None = None
     bid_qty: Decimal | None = None
     ask_price: Decimal | None = None
     ask_qty: Decimal | None = None
 
+    # Multi-layer quotes
+    bid_layers: list[LayeredQuote] | None = None
+    ask_layers: list[LayeredQuote] | None = None
+    
     # Metadata
     spread_bps: Decimal | None = None
     mid_price: Decimal | None = None
@@ -86,7 +90,11 @@ class PersistentQuote:
     updated_at: float = field(default_factory=time.time)
     expires_at: float | None = None
 
-    # Order references
+    # Order references (multi-layer support)
+    bid_order_ids: list[str] = field(default_factory=list)
+    ask_order_ids: list[str] = field(default_factory=list)
+    
+    # Legacy order references (backwards compatibility)
     bid_order_id: str | None = None
     ask_order_id: str | None = None
 
@@ -105,15 +113,19 @@ class PersistentQuote:
             source_bid_qty=Decimal(str(quote.source_data.bid_qty)),
             source_ask_price=Decimal(str(quote.source_data.ask_price)),
             source_ask_qty=Decimal(str(quote.source_data.ask_qty)),
+            # Legacy single-layer fields (from first layer for backwards compatibility)
             bid_price=Decimal(str(quote.bid_price)) if quote.bid_price else None,
             bid_qty=Decimal(str(quote.bid_qty)) if quote.bid_qty else None,
             ask_price=Decimal(str(quote.ask_price)) if quote.ask_price else None,
             ask_qty=Decimal(str(quote.ask_qty)) if quote.ask_qty else None,
+            # Multi-layer fields
+            bid_layers=quote.bid_layers,
+            ask_layers=quote.ask_layers,
             spread_bps=Decimal(str(quote.spread_bps)) if quote.spread_bps else None,
             mid_price=Decimal(str((quote.bid_price + quote.ask_price) / 2))
             if quote.bid_price and quote.ask_price
             else None,
-            total_spread_bps=settings.total_spread_bps,
+            total_spread_bps=settings.trading.base_spread_bps,
             sides_enabled=settings.trading.side_enable.copy(),
             strategy=strategy,
             expires_at=expires_at,
@@ -129,14 +141,22 @@ class PersistentQuote:
 
     @property
     def has_bid(self) -> bool:
-        """Check if quote has valid bid"""
+        """Check if quote has valid bid (single-layer or multi-layer)"""
+        # Check multi-layer first
+        if self.bid_layers and len(self.bid_layers) > 0:
+            return any(layer.quantity > 0 for layer in self.bid_layers)
+        # Fallback to legacy single-layer
         return (
             self.bid_price is not None and self.bid_qty is not None and self.bid_qty > 0
         )
 
     @property
     def has_ask(self) -> bool:
-        """Check if quote has valid ask"""
+        """Check if quote has valid ask (single-layer or multi-layer)"""
+        # Check multi-layer first
+        if self.ask_layers and len(self.ask_layers) > 0:
+            return any(layer.quantity > 0 for layer in self.ask_layers)
+        # Fallback to legacy single-layer
         return (
             self.ask_price is not None and self.ask_qty is not None and self.ask_qty > 0
         )
@@ -379,8 +399,11 @@ class QuoteToOrderPipeline:
             # Step 0: Cancel existing active quotes/orders for this symbol (ORDER REPLACEMENT)
             cancelled_count = await self.cancel_active_quotes_for_symbol(persistent_quote.symbol_dst)
             
-            # Verify OMS order count after cancellation
-            current_order_count = self.oms.risk_manager.open_order_count if self.oms else 0
+            # Synchronize and verify OMS order count after cancellation
+            if self.oms:
+                current_order_count = self.oms.sync_open_order_count()
+            else:
+                current_order_count = 0
             max_orders = settings.risk.max_open_orders
             
             if cancelled_count > 0:
@@ -393,12 +416,15 @@ class QuoteToOrderPipeline:
                     max_orders=max_orders
                 )
             
-            # Safety check: ensure we have room for new orders
-            orders_to_create = len([s for s in settings.trading.side_enable if s in ["bid", "ask"]])
+            # Safety check: ensure we have room for new orders (accounting for multi-layer)
+            sides_enabled = [s for s in settings.trading.side_enable if s in ["bid", "ask"]]
+            layers_per_side = settings.trading.num_layers
+            orders_to_create = len(sides_enabled) * layers_per_side
+            
             if current_order_count + orders_to_create > max_orders:
                 raise ValueError(
-                    f"Cannot create {orders_to_create} new orders: would exceed limit "
-                    f"({current_order_count} + {orders_to_create} > {max_orders}). "
+                    f"Cannot create {orders_to_create} new orders ({len(sides_enabled)} sides × {layers_per_side} layers): "
+                    f"would exceed limit ({current_order_count} + {orders_to_create} > {max_orders}). "
                     f"Order replacement may have failed."
                 )
 
@@ -484,25 +510,63 @@ class QuoteToOrderPipeline:
             raise
 
     async def _generate_orders(self, quote: PersistentQuote):
-        """Generate and submit orders from quote"""
+        """Generate and submit orders from quote (supports both single-layer and multi-layer)"""
         orders_created = []
 
         try:
-            # Generate bid order if enabled and valid
-            if quote.has_bid and "bid" in quote.sides_enabled:
-                bid_order = await self._create_order(
-                    quote, OrderSide.BUY, quote.bid_price, quote.bid_qty
-                )
-                orders_created.append(bid_order)
-                quote.bid_order_id = bid_order.order_id
+            # Multi-layer order generation (preferred)
+            if quote.bid_layers or quote.ask_layers:
+                # Generate bid orders for each layer
+                if quote.bid_layers and "bid" in quote.sides_enabled:
+                    for layer in quote.bid_layers:
+                        if layer.quantity > 0:  # Only create orders with positive quantity
+                            bid_order = await self._create_order(
+                                quote, 
+                                OrderSide.BUY, 
+                                Decimal(str(layer.price)), 
+                                Decimal(str(layer.quantity))
+                            )
+                            orders_created.append(bid_order)
+                            quote.bid_order_ids.append(bid_order.order_id)
+                
+                # Generate ask orders for each layer  
+                if quote.ask_layers and "ask" in quote.sides_enabled:
+                    for layer in quote.ask_layers:
+                        if layer.quantity > 0:  # Only create orders with positive quantity
+                            ask_order = await self._create_order(
+                                quote,
+                                OrderSide.SELL,
+                                Decimal(str(layer.price)),
+                                Decimal(str(layer.quantity))
+                            )
+                            orders_created.append(ask_order)
+                            quote.ask_order_ids.append(ask_order.order_id)
+                
+                # Set legacy fields from first orders for backwards compatibility
+                if quote.bid_order_ids:
+                    quote.bid_order_id = quote.bid_order_ids[0]
+                if quote.ask_order_ids:
+                    quote.ask_order_id = quote.ask_order_ids[0]
+            
+            # Fallback to legacy single-layer order generation
+            else:
+                # Generate bid order if enabled and valid
+                if quote.has_bid and "bid" in quote.sides_enabled:
+                    bid_order = await self._create_order(
+                        quote, OrderSide.BUY, quote.bid_price, quote.bid_qty
+                    )
+                    orders_created.append(bid_order)
+                    quote.bid_order_id = bid_order.order_id
+                    quote.bid_order_ids = [bid_order.order_id]
 
-            # Generate ask order if enabled and valid
-            if quote.has_ask and "ask" in quote.sides_enabled:
-                ask_order = await self._create_order(
-                    quote, OrderSide.SELL, quote.ask_price, quote.ask_qty
-                )
-                orders_created.append(ask_order)
-                quote.ask_order_id = ask_order.order_id
+                # Generate ask order if enabled and valid
+                if quote.has_ask and "ask" in quote.sides_enabled:
+                    ask_order = await self._create_order(
+                        quote, OrderSide.SELL, quote.ask_price, quote.ask_qty
+                    )
+                    orders_created.append(ask_order)
+                    quote.ask_order_id = ask_order.order_id
+                    quote.ask_order_ids = [ask_order.order_id]
 
             if orders_created:
                 quote.status = QuoteStatus.ORDERS_CREATED
@@ -519,8 +583,10 @@ class QuoteToOrderPipeline:
                     "Orders generated from quote",
                     quote_id=quote.quote_id,
                     orders_count=len(orders_created),
-                    bid_order=quote.bid_order_id,
-                    ask_order=quote.ask_order_id,
+                    bid_layers_count=len(quote.bid_order_ids),
+                    ask_layers_count=len(quote.ask_order_ids),
+                    bid_order_ids=quote.bid_order_ids[:3] + (["..."] if len(quote.bid_order_ids) > 3 else []),
+                    ask_order_ids=quote.ask_order_ids[:3] + (["..."] if len(quote.ask_order_ids) > 3 else []),
                 )
 
                 # Submit orders to exchange
@@ -660,20 +726,45 @@ class QuoteToOrderPipeline:
             )
 
     async def _cancel_quote(self, quote: PersistentQuote):
-        """Cancel a quote and its associated orders"""
+        """Cancel a quote and its associated orders (supports both single-layer and multi-layer)"""
         cancelled_orders = []
         
         try:
             # Get OMS order count before cancellation for verification
             initial_order_count = self.oms.risk_manager.open_order_count if self.oms else 0
             
-            # Cancel orders in OMS
-            if quote.bid_order_id:
-                await self.oms.cancel_order(quote.bid_order_id, "Quote cancelled")
-                cancelled_orders.append(quote.bid_order_id)
-            if quote.ask_order_id:
-                await self.oms.cancel_order(quote.ask_order_id, "Quote cancelled")  
-                cancelled_orders.append(quote.ask_order_id)
+            # Cancel multi-layer orders first (preferred)
+            if quote.bid_order_ids:
+                for order_id in quote.bid_order_ids:
+                    try:
+                        await self.oms.cancel_order(order_id, "Quote cancelled")
+                        cancelled_orders.append(order_id)
+                    except Exception as e:
+                        # Order may already be completed/failed - this is okay
+                        logger.debug("Could not cancel order (may already be complete)", order_id=order_id, error=str(e))
+            elif quote.bid_order_id:
+                # Fallback to legacy single order
+                try:
+                    await self.oms.cancel_order(quote.bid_order_id, "Quote cancelled")
+                    cancelled_orders.append(quote.bid_order_id)
+                except Exception as e:
+                    logger.debug("Could not cancel order (may already be complete)", order_id=quote.bid_order_id, error=str(e))
+                
+            if quote.ask_order_ids:
+                for order_id in quote.ask_order_ids:
+                    try:
+                        await self.oms.cancel_order(order_id, "Quote cancelled")
+                        cancelled_orders.append(order_id)
+                    except Exception as e:
+                        # Order may already be completed/failed - this is okay
+                        logger.debug("Could not cancel order (may already be complete)", order_id=order_id, error=str(e))
+            elif quote.ask_order_id:
+                # Fallback to legacy single order
+                try:
+                    await self.oms.cancel_order(quote.ask_order_id, "Quote cancelled")  
+                    cancelled_orders.append(quote.ask_order_id)
+                except Exception as e:
+                    logger.debug("Could not cancel order (may already be complete)", order_id=quote.ask_order_id, error=str(e))
 
             # Verify order count decreased properly
             final_order_count = self.oms.risk_manager.open_order_count if self.oms else 0
@@ -700,7 +791,8 @@ class QuoteToOrderPipeline:
             logger.info(
                 "Quote cancelled successfully", 
                 quote_id=quote.quote_id,
-                cancelled_orders=cancelled_orders,
+                cancelled_orders_count=len(cancelled_orders),
+                cancelled_orders=cancelled_orders[:5] + (["..."] if len(cancelled_orders) > 5 else []),
                 order_count_before=initial_order_count,
                 order_count_after=final_order_count
             )
@@ -710,15 +802,22 @@ class QuoteToOrderPipeline:
                 "Error cancelling quote", 
                 quote_id=quote.quote_id, 
                 error=str(e),
-                cancelled_orders=cancelled_orders
+                cancelled_orders_count=len(cancelled_orders)
             )
 
     async def _on_order_update(self, order: OMSOrder):
-        """Handle order updates from OMS"""
+        """Handle order updates from OMS (supports both single-layer and multi-layer)"""
         # Find the quote associated with this order
         quote = None
         for q in self.active_quotes.values():
-            if q.bid_order_id == order.order_id or q.ask_order_id == order.order_id:
+            # Check multi-layer orders first
+            is_bid_order = order.order_id in q.bid_order_ids if q.bid_order_ids else False
+            is_ask_order = order.order_id in q.ask_order_ids if q.ask_order_ids else False
+            # Fallback to legacy single order check
+            is_legacy_bid = q.bid_order_id == order.order_id if q.bid_order_id else False
+            is_legacy_ask = q.ask_order_id == order.order_id if q.ask_order_id else False
+            
+            if is_bid_order or is_ask_order or is_legacy_bid or is_legacy_ask:
                 quote = q
                 break
 
@@ -729,12 +828,30 @@ class QuoteToOrderPipeline:
         if order.is_complete:
             # Check if all orders for this quote are complete
             all_complete = True
-            if quote.bid_order_id:
+            
+            # Check multi-layer bid orders
+            if quote.bid_order_ids:
+                for order_id in quote.bid_order_ids:
+                    bid_order = self.oms.get_order(order_id)
+                    all_complete = all_complete and (
+                        bid_order is None or bid_order.is_complete
+                    )
+            elif quote.bid_order_id:
+                # Fallback to legacy single bid order
                 bid_order = self.oms.get_order(quote.bid_order_id)
                 all_complete = all_complete and (
                     bid_order is None or bid_order.is_complete
                 )
-            if quote.ask_order_id:
+            
+            # Check multi-layer ask orders
+            if quote.ask_order_ids:
+                for order_id in quote.ask_order_ids:
+                    ask_order = self.oms.get_order(order_id)
+                    all_complete = all_complete and (
+                        ask_order is None or ask_order.is_complete
+                    )
+            elif quote.ask_order_id:
+                # Fallback to legacy single ask order
                 ask_order = self.oms.get_order(quote.ask_order_id)
                 all_complete = all_complete and (
                     ask_order is None or ask_order.is_complete
@@ -747,8 +864,9 @@ class QuoteToOrderPipeline:
                 logger.debug(
                     "Quote completed, removed from active tracking",
                     quote_id=quote.quote_id,
-                    order_id=order.order_id,
+                    completed_order_id=order.order_id,
                     order_status=order.state,
+                    total_orders=len(quote.bid_order_ids) + len(quote.ask_order_ids) if quote.bid_order_ids or quote.ask_order_ids else 2,
                 )
 
         # Notify callbacks
