@@ -1,7 +1,4 @@
-import {
-  GetMarketDepthRequest,
-  GetMarketPriceRequest,
-} from "@deltadefi-protocol/sdk";
+import { GetMarketPriceRequest } from "@deltadefi-protocol/sdk";
 import { getApiClient } from ".";
 
 export const markets = async () => {
