@@ -27,7 +27,7 @@
     "start": "npm run build && node dist/index.cjs"
   },
   "dependencies": {
-    "@deltadefi-protocol/sdk": "0.3.28",
+    "@deltadefi-protocol/sdk": "0.3.29",
     "dotenv": "^16.4.7"
   },
   "devDependencies": {
