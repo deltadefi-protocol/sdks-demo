@@ -11,9 +11,9 @@ This separation ensures Cloud Run's HTTP requirement is met quickly.
 
 import asyncio
 import os
-import sys
-import time
 from threading import Thread
+import time
+
 
 def start_health_server_immediate():
     """Start health server immediately for Cloud Run startup probe"""
@@ -28,14 +28,15 @@ def start_health_server_immediate():
 
     return server
 
+
 def start_trading_bot():
     """Start the trading bot in background after health server is ready"""
     print("🤖 Starting trading bot in background...")
 
     # Import and run the trading bot main logic without signal handlers
-    from bot.main import TradingBot
-    import sys
+
     from bot.config import settings
+    from bot.main import TradingBot
 
     async def bot_main():
         """Bot main without signal handlers (for background thread)"""
@@ -57,6 +58,7 @@ def start_trading_bot():
 
     asyncio.run(bot_main())
 
+
 def main():
     """Main entry point for Cloud Run"""
     import signal
@@ -64,7 +66,7 @@ def main():
     print("🚀 Cloud Run entry point starting...")
 
     # Start health server FIRST and IMMEDIATELY
-    if os.getenv('PORT'):
+    if os.getenv("PORT"):
         health_server = start_health_server_immediate()
 
         # Start trading bot in background thread
@@ -87,7 +89,9 @@ def main():
     else:
         # No PORT env var, run trading bot directly (local development)
         from bot.main import main as bot_main
+
         asyncio.run(bot_main())
+
 
 if __name__ == "__main__":
     main()

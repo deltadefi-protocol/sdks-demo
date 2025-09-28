@@ -8,7 +8,13 @@ from unittest.mock import patch
 import pytest
 
 from bot.config import Settings
-from bot.quote import BookTicker, Quote, QuoteEngine, LayeredQuote, create_book_ticker_from_binance
+from bot.quote import (
+    BookTicker,
+    LayeredQuote,
+    Quote,
+    QuoteEngine,
+    create_book_ticker_from_binance,
+)
 
 
 @pytest.fixture
@@ -62,8 +68,12 @@ class TestBookTicker:
 class TestQuote:
     def test_quote_creation(self, sample_book_ticker):
         """Test Quote dataclass creation"""
-        bid_layers = [LayeredQuote(layer=1, price=0.999, quantity=100.0, spread_bps=10.0)]
-        ask_layers = [LayeredQuote(layer=1, price=1.002, quantity=100.0, spread_bps=10.0)]
+        bid_layers = [
+            LayeredQuote(layer=1, price=0.999, quantity=100.0, spread_bps=10.0)
+        ]
+        ask_layers = [
+            LayeredQuote(layer=1, price=1.002, quantity=100.0, spread_bps=10.0)
+        ]
 
         quote = Quote(
             symbol="ADAUSDM",
@@ -79,8 +89,12 @@ class TestQuote:
 
     def test_spread_calculation(self, sample_book_ticker):
         """Test spread calculation in basis points"""
-        bid_layers = [LayeredQuote(layer=1, price=0.999, quantity=100.0, spread_bps=10.0)]
-        ask_layers = [LayeredQuote(layer=1, price=1.001, quantity=100.0, spread_bps=10.0)]
+        bid_layers = [
+            LayeredQuote(layer=1, price=0.999, quantity=100.0, spread_bps=10.0)
+        ]
+        ask_layers = [
+            LayeredQuote(layer=1, price=1.001, quantity=100.0, spread_bps=10.0)
+        ]
 
         quote = Quote(
             symbol="ADAUSDM",
@@ -96,8 +110,12 @@ class TestQuote:
 
     def test_mid_price_calculation(self, sample_book_ticker):
         """Test mid price calculation"""
-        bid_layers = [LayeredQuote(layer=1, price=0.999, quantity=100.0, spread_bps=10.0)]
-        ask_layers = [LayeredQuote(layer=1, price=1.001, quantity=100.0, spread_bps=10.0)]
+        bid_layers = [
+            LayeredQuote(layer=1, price=0.999, quantity=100.0, spread_bps=10.0)
+        ]
+        ask_layers = [
+            LayeredQuote(layer=1, price=1.001, quantity=100.0, spread_bps=10.0)
+        ]
 
         quote = Quote(
             symbol="ADAUSDM",

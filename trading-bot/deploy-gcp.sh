@@ -72,7 +72,7 @@ else
     --env-vars-file .env \
     --port 8080 \
     --no-cpu-throttling \
-    --execution-environment gen2 
+    --execution-environment gen2
 fi
 
 echo "✅ Deployment completed!"

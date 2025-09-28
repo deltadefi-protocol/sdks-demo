@@ -5,12 +5,11 @@ Runs alongside the trading bot to satisfy Cloud Run's HTTP requirement.
 This server starts IMMEDIATELY to satisfy Cloud Run's startup probe.
 """
 
+from datetime import datetime
+from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
 import os
 import sqlite3
-import sys
-from datetime import datetime
-from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
 
 
@@ -27,7 +26,7 @@ class HealthHandler(BaseHTTPRequestHandler):
                 "timestamp": datetime.utcnow().isoformat() + "Z",
                 "service": "deltadefi-trading-bot",
                 "database": self.check_database(),
-                "uptime": self.get_uptime()
+                "uptime": self.get_uptime(),
             }
 
             self.wfile.write(json.dumps(health_data, indent=2).encode())
@@ -39,18 +38,18 @@ class HealthHandler(BaseHTTPRequestHandler):
     def check_database(self):
         """Check if database is accessible"""
         try:
-            db_path = os.getenv('SYSTEM__DB_PATH', 'trading_bot.db')
+            db_path = os.getenv("SYSTEM__DB_PATH", "trading_bot.db")
             conn = sqlite3.connect(db_path)
-            conn.execute('SELECT 1').fetchone()
+            conn.execute("SELECT 1").fetchone()
             conn.close()
             return "accessible"
         except Exception as e:
-            return f"error: {str(e)}"
+            return f"error: {e!s}"
 
     def get_uptime(self):
         """Get system uptime info"""
         try:
-            with open('/proc/uptime', 'r') as f:
+            with open("/proc/uptime") as f:
                 uptime_seconds = float(f.readline().split()[0])
                 return f"{uptime_seconds:.1f}s"
         except:
@@ -58,15 +57,14 @@ class HealthHandler(BaseHTTPRequestHandler):
 
     def log_message(self, format, *args):
         """Suppress default HTTP server logs"""
-        pass
 
 
 def start_health_server():
     """Start the health server in a separate thread"""
-    port = int(os.getenv('PORT', 8080))
+    port = int(os.getenv("PORT", 8080))
 
     # Configure server with minimal timeout for faster startup
-    server = HTTPServer(('0.0.0.0', port), HealthHandler)
+    server = HTTPServer(("0.0.0.0", port), HealthHandler)
     server.timeout = 1.0  # Short timeout for faster response
 
     print(f"🏥 Health server starting on port {port}")
@@ -78,10 +76,11 @@ def start_health_server():
 
     # Verify server is listening
     import socket
+
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         sock.settimeout(2.0)
-        result = sock.connect_ex(('0.0.0.0', port))
+        result = sock.connect_ex(("0.0.0.0", port))
         if result == 0:
             print(f"✅ Health server confirmed listening on port {port}")
         else:
@@ -100,6 +99,7 @@ if __name__ == "__main__":
     try:
         while True:
             import time
+
             time.sleep(1)
     except KeyboardInterrupt:
         print("\n🛑 Health server stopped")

@@ -43,7 +43,9 @@ class TestExchangeConfig:
 
     def test_with_api_key(self):
         """Test exchange config with API key"""
-        config = ExchangeConfig(deltadefi_api_key="test_key", trading_password="pass123")
+        config = ExchangeConfig(
+            deltadefi_api_key="test_key", trading_password="pass123"
+        )
 
         assert config.deltadefi_api_key == "test_key"
         assert config.trading_password == "pass123"

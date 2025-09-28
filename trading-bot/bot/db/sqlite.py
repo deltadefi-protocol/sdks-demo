@@ -96,7 +96,11 @@ class SQLiteManager:
 
             # If quotes table doesn't exist (empty columns) or has wrong schema, apply schema
             if not columns or not has_quote_id:
-                logger.info("Applying database schema", has_existing_tables=bool(columns), has_quote_id=has_quote_id)
+                logger.info(
+                    "Applying database schema",
+                    has_existing_tables=bool(columns),
+                    has_quote_id=has_quote_id,
+                )
 
                 if columns and not has_quote_id:
                     # Need to migrate existing schema - drop and recreate
@@ -138,33 +142,32 @@ class SQLiteManager:
                 if str(self.db_path) == ":memory:":
                     # For memory databases, we need to use the current connection
                     # Split into statements and execute individually
-                    import re
                     # Split on semicolons but preserve complete statements
                     statements = []
                     current = []
                     in_trigger = False
 
-                    for line in schema_sql.split('\n'):
+                    for line in schema_sql.split("\n"):
                         line = line.strip()
-                        if not line or line.startswith('--'):
+                        if not line or line.startswith("--"):
                             continue
 
-                        if 'CREATE TRIGGER' in line.upper():
+                        if "CREATE TRIGGER" in line.upper():
                             in_trigger = True
 
                         current.append(line)
 
-                        if line.endswith(';'):
-                            if in_trigger and 'END;' in line.upper():
+                        if line.endswith(";"):
+                            if in_trigger and "END;" in line.upper():
                                 in_trigger = False
-                                statements.append('\n'.join(current))
+                                statements.append("\n".join(current))
                                 current = []
                             elif not in_trigger:
-                                statements.append('\n'.join(current))
+                                statements.append("\n".join(current))
                                 current = []
 
                     if current:  # Handle last statement
-                        statements.append('\n'.join(current))
+                        statements.append("\n".join(current))
 
                     for statement in statements:
                         statement = statement.strip()
@@ -175,6 +178,7 @@ class SQLiteManager:
                 else:
                     # For file databases, use sync connection
                     import sqlite3
+
                     sync_conn = sqlite3.connect(str(self.db_path))
                     sync_conn.executescript(schema_sql)
                     sync_conn.close()

@@ -3,7 +3,7 @@ name = "deltadefi-sdk-demo"
 version = "0.0.1"
 edition = "2021"
 
-[[bin]] 
+[[bin]]
 name = "deltadefi-sdk-demo"
 path = "main.rs"
 
