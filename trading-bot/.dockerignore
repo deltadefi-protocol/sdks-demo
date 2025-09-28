@@ -1,0 +1,83 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Logs
+*.log
+logs/
+
+# Database DATA files (exclude from container, use volumes)
+# Be specific about database files to avoid conflicts
+trading_bot.db*
+*.sqlite
+*.sqlite3
+# Explicitly allow schema files
+!bot/db/schema.sql
+!**/*.sql
+
+# Environment files (will be injected via Cloud Run)
+.env
+.env.local
+.env.production
+
+# Documentation
+docs/
+*.md
+README*
+
+# Cache
+.mypy_cache/
+.ruff_cache/
+
+# Build artifacts
+*.tar.gz
+*.zip
+
+# Temporary files
+tmp/
+temp/

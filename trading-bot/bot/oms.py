@@ -189,7 +189,9 @@ class RiskManager:
         # Max open orders check (configurable limit)
         max_orders = settings.risk.max_open_orders
         if self.open_order_count >= max_orders:
-            violations.append(f"Too many open orders: {self.open_order_count}/{max_orders}")
+            violations.append(
+                f"Too many open orders: {self.open_order_count}/{max_orders}"
+            )
 
         return len(violations) == 0, violations
 
@@ -599,15 +601,15 @@ class OrderManagementSystem:
         actual_count = self.get_actual_open_order_count()
         old_count = self.risk_manager.open_order_count
         self.risk_manager.open_order_count = actual_count
-        
+
         if old_count != actual_count:
             logger.info(
                 "Synchronized open order count",
                 old_count=old_count,
                 actual_count=actual_count,
-                difference=actual_count - old_count
+                difference=actual_count - old_count,
             )
-        
+
         return actual_count
 
     def get_portfolio_summary(self) -> dict:

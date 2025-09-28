@@ -666,7 +666,10 @@ class AccountManager:
             self.connection_retry_count = 0
 
         except Exception as e:
-            logger.warning("WebSocket connection failed, continuing without real-time account updates", error=str(e))
+            logger.warning(
+                "WebSocket connection failed, continuing without real-time account updates",
+                error=str(e),
+            )
             # Don't call _handle_websocket_error immediately - let the bot continue
             # We can still do market making without real-time account updates
             # The REST API can be used for balance checks if needed

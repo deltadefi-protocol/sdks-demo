@@ -87,46 +87,99 @@ class SQLiteManager:
             if not self.schema_path.exists():
                 raise MigrationError(f"Schema file not found: {self.schema_path}")
 
-            # Check if we need to migrate by checking if quote_id column exists
+            # Check if quotes table exists and has the correct schema
             cursor = await conn.execute("PRAGMA table_info(quotes)")
             columns = await cursor.fetchall()
             await cursor.close()
-            
-            has_quote_id = any(column[1] == 'quote_id' for column in columns)
-            
-            if not has_quote_id and columns:
-                # Need to migrate existing schema - drop and recreate
-                logger.info("Migrating database schema - dropping existing tables")
-                
-                # Drop views first (they depend on tables)
-                drop_views = [
-                    "DROP VIEW IF EXISTS v_active_orders",
-                    "DROP VIEW IF EXISTS v_quotes_with_orders", 
-                    "DROP VIEW IF EXISTS v_daily_summary"
-                ]
-                
-                for sql in drop_views:
-                    await conn.execute(sql)
-                
-                # Drop tables (in reverse dependency order)
-                drop_tables = [
-                    "DROP TABLE IF EXISTS fills",
-                    "DROP TABLE IF EXISTS orders", 
-                    "DROP TABLE IF EXISTS quotes",
-                    "DROP TABLE IF EXISTS outbox",
-                    "DROP TABLE IF EXISTS positions",
-                    "DROP TABLE IF EXISTS account_balances",
-                    "DROP TABLE IF EXISTS trading_sessions"
-                ]
-                
-                for sql in drop_tables:
-                    await conn.execute(sql)
-                
-                logger.info("Existing tables dropped, creating new schema")
-            
-            # Read and execute new schema
-            schema_sql = self.schema_path.read_text()
-            await conn.executescript(schema_sql)
+
+            has_quote_id = any(column[1] == "quote_id" for column in columns)
+
+            # If quotes table doesn't exist (empty columns) or has wrong schema, apply schema
+            if not columns or not has_quote_id:
+                logger.info("Applying database schema", has_existing_tables=bool(columns), has_quote_id=has_quote_id)
+
+                if columns and not has_quote_id:
+                    # Need to migrate existing schema - drop and recreate
+                    logger.info("Migrating database schema - dropping existing tables")
+
+                    # Drop views first (they depend on tables)
+                    drop_views = [
+                        "DROP VIEW IF EXISTS v_active_orders",
+                        "DROP VIEW IF EXISTS v_quotes_with_orders",
+                        "DROP VIEW IF EXISTS v_daily_summary",
+                    ]
+
+                    for sql in drop_views:
+                        await conn.execute(sql)
+
+                    # Drop tables (in reverse dependency order)
+                    drop_tables = [
+                        "DROP TABLE IF EXISTS fills",
+                        "DROP TABLE IF EXISTS orders",
+                        "DROP TABLE IF EXISTS quotes",
+                        "DROP TABLE IF EXISTS outbox",
+                        "DROP TABLE IF EXISTS positions",
+                        "DROP TABLE IF EXISTS account_balances",
+                        "DROP TABLE IF EXISTS trading_sessions",
+                    ]
+
+                    for sql in drop_tables:
+                        await conn.execute(sql)
+
+                    logger.info("Existing tables dropped, creating new schema")
+
+                # Read and execute new schema
+                schema_sql = self.schema_path.read_text()
+
+                # Use executescript for proper handling of complex SQL
+                logger.info("Executing schema script")
+
+                # For in-memory databases, we need to apply schema to the same connection
+                if str(self.db_path) == ":memory:":
+                    # For memory databases, we need to use the current connection
+                    # Split into statements and execute individually
+                    import re
+                    # Split on semicolons but preserve complete statements
+                    statements = []
+                    current = []
+                    in_trigger = False
+
+                    for line in schema_sql.split('\n'):
+                        line = line.strip()
+                        if not line or line.startswith('--'):
+                            continue
+
+                        if 'CREATE TRIGGER' in line.upper():
+                            in_trigger = True
+
+                        current.append(line)
+
+                        if line.endswith(';'):
+                            if in_trigger and 'END;' in line.upper():
+                                in_trigger = False
+                                statements.append('\n'.join(current))
+                                current = []
+                            elif not in_trigger:
+                                statements.append('\n'.join(current))
+                                current = []
+
+                    if current:  # Handle last statement
+                        statements.append('\n'.join(current))
+
+                    for statement in statements:
+                        statement = statement.strip()
+                        if statement:
+                            await conn.execute(statement)
+
+                    await conn.commit()
+                else:
+                    # For file databases, use sync connection
+                    import sqlite3
+                    sync_conn = sqlite3.connect(str(self.db_path))
+                    sync_conn.executescript(schema_sql)
+                    sync_conn.close()
+
+                logger.info("Schema applied successfully")
 
             logger.info("Database schema migrations completed")
 

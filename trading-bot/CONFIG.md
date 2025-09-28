@@ -77,10 +77,10 @@ Settings are loaded in this order (later overrides earlier):
 
 ## Benefits of This Approach
 
-✅ **Secrets stay private** - API keys never accidentally committed  
-✅ **Strategy parameters in version control** - Easy to track changes  
-✅ **Environment-specific deployments** - Different `.env` per environment  
-✅ **Team collaboration** - Share `config.yaml` safely  
+✅ **Secrets stay private** - API keys never accidentally committed
+✅ **Strategy parameters in version control** - Easy to track changes
+✅ **Environment-specific deployments** - Different `.env` per environment
+✅ **Team collaboration** - Share `config.yaml` safely
 ✅ **Configuration validation** - Pydantic validates all settings
 
 ## Environment Variables Override

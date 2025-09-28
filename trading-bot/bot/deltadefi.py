@@ -179,7 +179,7 @@ class DeltaDeFiClient:
 
         # Round price to 4 decimal places as required by DeltaDeFi
         formatted_price = round(price, 4) if price is not None else None
-        
+
         logger.info(
             "Submitting order",
             symbol=symbol,
@@ -223,7 +223,9 @@ class DeltaDeFiClient:
             )
             raise
 
-    async def cancel_order(self, order_id: str, symbol: str | None = None, **kwargs) -> dict:
+    async def cancel_order(
+        self, order_id: str, symbol: str | None = None, **kwargs
+    ) -> dict:
         """Cancel an order
 
         Args:
@@ -286,74 +288,82 @@ class DeltaDeFiClient:
             # Use pagination to fetch ALL open orders (up to 250 per request)
             all_orders = []
             page = 1
-            
+
             while True:
                 # Get orders for current page with maximum limit
                 result = self._client.accounts.get_order_records(
-                    status="openOrder", 
+                    status="openOrder",
                     limit=250,  # Maximum per request
-                    page=page
+                    page=page,
                 )
-                
+
                 # Extract orders from the response - handle nested structure
                 page_orders = []
-                if hasattr(result, 'data') and result.data:
+                if hasattr(result, "data") and result.data:
                     # SDK response object with data attribute
                     data = result.data
-                    if isinstance(data, list) and len(data) > 0 and 'orders' in data[0]:
-                        page_orders = data[0]['orders']
+                    if isinstance(data, list) and len(data) > 0 and "orders" in data[0]:
+                        page_orders = data[0]["orders"]
                     else:
                         page_orders = data if isinstance(data, list) else []
-                elif isinstance(result, dict) and 'data' in result:
+                elif isinstance(result, dict) and "data" in result:
                     # Dict response with nested structure
-                    data = result['data']
-                    if isinstance(data, list) and len(data) > 0 and 'orders' in data[0]:
-                        page_orders = data[0]['orders']
+                    data = result["data"]
+                    if isinstance(data, list) and len(data) > 0 and "orders" in data[0]:
+                        page_orders = data[0]["orders"]
                     else:
                         page_orders = data if isinstance(data, list) else []
                 elif isinstance(result, list):
                     # Direct list of orders
                     page_orders = result
                 else:
-                    logger.warning("Unexpected response format from get_order_records", result_type=type(result), result=result)
+                    logger.warning(
+                        "Unexpected response format from get_order_records",
+                        result_type=type(result),
+                        result=result,
+                    )
                     page_orders = []
-                
+
                 if not page_orders:
                     # No more orders on this page, we're done
                     break
-                    
+
                 all_orders.extend(page_orders)
-                
+
                 # Check if we have more pages
                 total_pages = 1
-                if hasattr(result, 'total_page'):
+                if hasattr(result, "total_page"):
                     total_pages = result.total_page
-                elif isinstance(result, dict) and 'total_page' in result:
-                    total_pages = result['total_page']
-                
+                elif isinstance(result, dict) and "total_page" in result:
+                    total_pages = result["total_page"]
+
                 if page >= total_pages:
                     # We've fetched all pages
                     break
-                    
+
                 page += 1
-                
+
             orders = all_orders
-            
+
             # Filter by symbol if provided
             if symbol:
                 filtered_orders = []
                 for order in orders:
-                    order_symbol = order.get('symbol') if isinstance(order, dict) else getattr(order, 'symbol', None)
+                    order_symbol = (
+                        order.get("symbol")
+                        if isinstance(order, dict)
+                        else getattr(order, "symbol", None)
+                    )
                     if order_symbol == symbol:
                         filtered_orders.append(order)
                 orders = filtered_orders
-            
+
             logger.info(
                 "Open orders retrieved successfully",
                 symbol=symbol,
-                total_count=len(orders)
+                total_count=len(orders),
             )
-            
+
             return orders
 
         except Exception as e:
@@ -423,7 +433,7 @@ class AccountWebSocket:
             )
 
             logger.info("Connecting to DeltaDeFi WebSocket...")
-            
+
             # Connect and subscribe to account stream in one call
             # This method handles the connection to the correct endpoint internally
             await self._client.websocket.subscribe_account()
@@ -433,9 +443,11 @@ class AccountWebSocket:
         except Exception as e:
             logger.error("Failed to start account WebSocket", error=str(e))
             # Log additional debug info
-            logger.error("WebSocket debug info", 
-                        is_connected=getattr(self._client.websocket, 'is_connected', 'unknown'),
-                        subscriptions=getattr(self._client.websocket, 'subscriptions', {}))
+            logger.error(
+                "WebSocket debug info",
+                is_connected=getattr(self._client.websocket, "is_connected", "unknown"),
+                subscriptions=getattr(self._client.websocket, "subscriptions", {}),
+            )
             raise
 
     async def stop(self) -> None:
