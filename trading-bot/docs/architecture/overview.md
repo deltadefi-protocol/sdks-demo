@@ -150,7 +150,7 @@ The system uses a **two-tier configuration approach**:
 
 ---
 
-> **📚 Component Documentation:**  
+> **📚 Component Documentation:**
 > Each component has detailed documentation covering implementation details, APIs, configuration options, and integration patterns. See the links in the Core Components table above.
 > **📖 User Documentation:**
 >

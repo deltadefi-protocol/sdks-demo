@@ -39,6 +39,7 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+.ruff_cache/
 cover/
 
 # Virtual environments
@@ -56,6 +57,9 @@ venv.bak/
 *.swp
 *.swo
 *~
+
+# Claude Code settings (may contain sensitive local config)
+.claude/
 
 # OS
 .DS_Store
@@ -99,3 +103,29 @@ backups/
 binance-ed25519
 binance-ed25519.pub
 private-key
+
+# Docker & GCP deployment files (with sensitive data)
+gcp-service-key.json
+cloudbuild.yaml
+gcp-credentials.json
+service-account-*.json
+
+# Cloud Run and GCP deployment logs/artifacts
+deploy-logs/
+*.tar.gz
+cloud-run-logs.txt
+deployment-output.log
+
+# Trading bot runtime data (contains sensitive trading info)
+data/
+trading_bot.db*
+*.backup
+*.dump
+
+# Any files containing credentials in the name
+*credentials*
+*secrets*
+*keys*
+*-key.*
+*.pem
+*.key

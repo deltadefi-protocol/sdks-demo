@@ -621,14 +621,16 @@ class OutboxMonitor:
                 retry_counts[f"retry_{i}"] = result["count"] if result else 0
 
             # Get events by type
-            event_type_stats = await db_manager.fetch_all("""
+            event_type_stats = await db_manager.fetch_all(
+                """
                 SELECT
                     event_type,
                     status,
                     COUNT(*) as count
                 FROM outbox
                 GROUP BY event_type, status
-            """)
+            """
+            )
 
             # Get processing rate (events per hour in last 24 hours)
             processing_rate = await db_manager.fetch_one(

@@ -39,11 +39,11 @@ install: ## Install project in editable mode with dependencies [install]
 
 hooks: ## Install git pre-commit hooks [install]
 	@$(UV) pip install pre-commit
-	@pre-commit install
+	@$(UV) run pre-commit install
 
 # >� Testing & Quality
 precommit: ## Run all pre-commit hooks (format, lint, type check) [quality]
-	@pre-commit run -a --show-diff-on-failure
+	@$(UV) run pre-commit run -a --show-diff-on-failure
 
 fmt: ## Format code with Ruff formatter [format]
 	@$(UV) run ruff format .

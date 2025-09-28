@@ -16,7 +16,7 @@ class TradingConfig(BaseModel):
     symbol_dst: str = Field(
         default="ADAUSDM", description="Destination symbol (DeltaDeFi)"
     )
-    
+
     # Multi-layer strategy parameters
     base_spread_bps: int = Field(
         default=8, description="Starting spread from reference price in basis points"
@@ -24,27 +24,28 @@ class TradingConfig(BaseModel):
     tick_spread_bps: int = Field(
         default=10, description="Incremental spread between layers in basis points"
     )
-    num_layers: int = Field(
-        default=10, description="Number of layers per side"
-    )
+    num_layers: int = Field(default=10, description="Number of layers per side")
     layer_liquidity_multiplier: float = Field(
         default=1.0, description="Liquidity growth factor per layer (1.0 = 100%)"
     )
     total_liquidity: float = Field(
         default=5000.0, description="Total liquidity to distribute across all layers"
     )
-    
+
     # Legacy parameters (keep for backwards compatibility)
     anchor_bps: int = Field(
         default=5, description="Distance from Binance BBO in basis points (legacy)"
     )
     venue_spread_bps: int = Field(
-        default=3, description="Extra buffer for cross-venue risk in basis points (legacy)"
+        default=3,
+        description="Extra buffer for cross-venue risk in basis points (legacy)",
     )
     side_enable: list[str] = Field(
         default=["bid", "ask"], description="Which sides to quote"
     )
-    qty: float = Field(default=100.0, description="Order quantity in ADA units (legacy)")
+    qty: float = Field(
+        default=100.0, description="Order quantity in ADA units (legacy)"
+    )
     max_skew: float = Field(
         default=2000.0, description="Maximum position skew in ADA before pausing"
     )
@@ -65,7 +66,7 @@ class TradingConfig(BaseModel):
     stale_ms: int = Field(
         default=5000, description="Time before market data is considered stale"
     )
-    
+
     # Quote management
     quote_ttl_ms: int = Field(
         default=2000, description="Quote time-to-live before replacement (milliseconds)"
@@ -73,7 +74,7 @@ class TradingConfig(BaseModel):
     enable_aggressive_replacement: bool = Field(
         default=True, description="Cancel existing orders immediately on price moves"
     )
-    
+
     # Asset ratio management parameters
     target_asset_ratio: float = Field(
         default=1.0, description="Target USDM:ADA value ratio (1.0 = 1:1)"
@@ -85,7 +86,8 @@ class TradingConfig(BaseModel):
         default=2.0, description="Multiplier for spread adjustment when out of ratio"
     )
     liquidity_adjustment_factor: float = Field(
-        default=1.5, description="Multiplier for liquidity size adjustment when out of ratio"
+        default=1.5,
+        description="Multiplier for liquidity size adjustment when out of ratio",
     )
     use_full_capital: bool = Field(
         default=True, description="Deploy 100% of available capital for market making"
@@ -121,7 +123,8 @@ class RiskConfig(BaseModel):
         default=1000.0, description="Maximum daily loss limit"
     )
     max_open_orders: int = Field(
-        default=20, description="Maximum number of open orders (increased for multi-layer)"
+        default=20,
+        description="Maximum number of open orders (increased for multi-layer)",
     )
     max_layers_per_side: int = Field(
         default=10, description="Maximum layers allowed per side for risk control"
@@ -150,7 +153,7 @@ class SystemConfig(BaseModel):
     max_reconnect_attempts: int = Field(
         default=10, description="Maximum reconnection attempts"
     )
-    
+
     # Order management
     cleanup_unregistered_orders: bool = Field(
         default=True, description="Cancel orders not in database"
@@ -189,17 +192,10 @@ class Settings(BaseSettings):
 
     @property
     def deltadefi_ws_url(self) -> str:
-        """Get DeltaDeFi WebSocket URL"""
-        if self.exchange.deltadefi_ws_url:
-            return self.exchange.deltadefi_ws_url
-
-        # Convert HTTP to WebSocket URL
-        base = self.exchange.deltadefi_base_url
-        if base.startswith("https://"):
-            return base.replace("https://", "wss://")
-        elif base.startswith("http://"):
-            return base.replace("http://", "ws://")
-        return base
+        """Get DeltaDeFi WebSocket URL - URLs are managed by DeltaDeFi SDK"""
+        # URLs are hardcoded in DeltaDeFi SDK based on network mode
+        # Return the staging WebSocket endpoint
+        return "wss://stream-staging.deltadefi.io"
 
     def is_side_enabled(self, side: str) -> bool:
         """Check if a trading side is enabled"""
@@ -217,9 +213,10 @@ class Settings(BaseSettings):
 
 
 # Global settings instance - load from YAML if available
-import os
 from pathlib import Path
+
 import yaml
+
 
 def _load_settings():
     """Load settings with YAML file support"""
@@ -230,5 +227,6 @@ def _load_settings():
         return Settings(**yaml_data)
     else:
         return Settings()
+
 
 settings = _load_settings()

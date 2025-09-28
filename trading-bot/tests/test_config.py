@@ -38,19 +38,17 @@ class TestExchangeConfig:
         """Test default exchange configuration"""
         config = ExchangeConfig()
 
-        assert config.binance_ws_url == "wss://stream.binance.com:9443/ws"
-        assert config.deltadefi_base_url == "https://api-staging.deltadefi.io"
         assert config.deltadefi_api_key == ""  # Default empty string
-        assert config.deltadefi_ws_url is None
+        assert config.trading_password == ""  # Default empty string
 
     def test_with_api_key(self):
         """Test exchange config with API key"""
-        config = ExchangeConfig(deltadefi_api_key="test_key")
+        config = ExchangeConfig(
+            deltadefi_api_key="test_key", trading_password="pass123"
+        )
 
-        assert config.binance_ws_url == "wss://stream.binance.com:9443/ws"
-        assert config.deltadefi_base_url == "https://api-staging.deltadefi.io"
         assert config.deltadefi_api_key == "test_key"
-        assert config.deltadefi_ws_url is None
+        assert config.trading_password == "pass123"
 
 
 class TestSettings:
@@ -65,16 +63,12 @@ class TestSettings:
         assert settings.total_spread_bps == 8
 
     def test_deltadefi_ws_url_derivation(self):
-        """Test WebSocket URL derivation from base URL"""
-        with patch.dict(
-            os.environ,
-            {
-                "EXCHANGE__DELTADEFI_API_KEY": "test_key",
-                "EXCHANGE__DELTADEFI_BASE_URL": "https://api.example.com",
-            },
-        ):
-            settings = Settings()
-            assert settings.deltadefi_ws_url == "wss://api.example.com"
+        """Test WebSocket URL derivation - URLs are handled by DeltaDeFi SDK"""
+        # Since URLs are hardcoded in DeltaDeFi SDK, just test basic settings loading
+        settings = Settings()
+        # The deltadefi_ws_url property should exist and return a string
+        ws_url = settings.deltadefi_ws_url
+        assert isinstance(ws_url, str)
 
     def test_side_enabled(self):
         """Test side enablement checking"""

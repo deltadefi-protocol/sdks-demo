@@ -10,8 +10,8 @@ from typing import Any
 
 import structlog
 
-from .config import settings
 from .asset_ratio_manager import AssetRatioManager
+from .config import settings
 
 logger = structlog.get_logger()
 
@@ -31,11 +31,12 @@ class BookTicker:
 @dataclass
 class LayeredQuote:
     """Single layer quote for DeltaDeFi"""
-    
+
     layer: int
     price: float
     quantity: float
     spread_bps: float
+
 
 @dataclass
 class Quote:
@@ -46,7 +47,7 @@ class Quote:
     ask_layers: list[LayeredQuote] | None
     timestamp: float
     source_data: BookTicker
-    
+
     # Legacy single-layer support for backwards compatibility
     bid_price: float | None = None
     bid_qty: float | None = None
@@ -58,7 +59,7 @@ class Quote:
         if self.bid_layers and len(self.bid_layers) > 0:
             self.bid_price = self.bid_layers[0].price
             self.bid_qty = self.bid_layers[0].quantity
-            
+
         if self.ask_layers and len(self.ask_layers) > 0:
             self.ask_price = self.ask_layers[0].price
             self.ask_qty = self.ask_layers[0].quantity
@@ -139,107 +140,131 @@ class QuoteEngine:
             symbol=quote.symbol,
             bid_layers_count=len(bid_layers) if bid_layers else 0,
             ask_layers_count=len(ask_layers) if ask_layers else 0,
-            first_layer_spread_bps=f"{quote.spread_bps:.2f}" if quote.spread_bps else None,
+            first_layer_spread_bps=f"{quote.spread_bps:.2f}"
+            if quote.spread_bps
+            else None,
             source_bid=book_ticker.bid_price,
             source_ask=book_ticker.ask_price,
         )
 
         return quote
 
-    def _generate_bid_layers(self, book_ticker: BookTicker) -> list[LayeredQuote] | None:
+    def _generate_bid_layers(
+        self, book_ticker: BookTicker
+    ) -> list[LayeredQuote] | None:
         """Generate multi-layer bid quotes with ratio adjustments"""
         if not settings.is_side_enabled("bid"):
             return None
 
         bid_layers = []
         bid_reference_price = book_ticker.bid_price
-        
+
         # Get ratio adjustments
         ratio_adjustment = self.asset_ratio_manager.get_ratio_adjustment()
         bid_alloc, ask_alloc = self.asset_ratio_manager.get_capital_allocation()
-        
+
         # Calculate base layer notional with capital allocation
         total_available_liquidity = settings.trading.total_liquidity * bid_alloc
         base_layer_notional = total_available_liquidity / settings.trading.num_layers
-        
+
         for layer_i in range(1, settings.trading.num_layers + 1):
             # Calculate base spread for this layer
-            base_spread_bps = settings.trading.base_spread_bps + (layer_i - 1) * settings.trading.tick_spread_bps
-            
+            base_spread_bps = (
+                settings.trading.base_spread_bps
+                + (layer_i - 1) * settings.trading.tick_spread_bps
+            )
+
             # Apply ratio-based spread adjustment
-            adjusted_spread_bps = base_spread_bps * ratio_adjustment.bid_spread_multiplier
-            
+            adjusted_spread_bps = (
+                base_spread_bps * ratio_adjustment.bid_spread_multiplier
+            )
+
             # Calculate price according to spec: bid_reference_price * (1 - spread_bps/10000)
             layer_price = bid_reference_price * (1 - adjusted_spread_bps / 10000)
-            
+
             # Calculate quantity with progressive growth and ratio adjustment
-            growth_factor = 1 + (layer_i - 1) * settings.trading.layer_liquidity_multiplier
+            growth_factor = (
+                1 + (layer_i - 1) * settings.trading.layer_liquidity_multiplier
+            )
             base_quantity = (base_layer_notional * growth_factor) / layer_price
             layer_quantity = base_quantity * ratio_adjustment.bid_liquidity_multiplier
-            
+
             # Apply minimum size constraint
             if layer_quantity < settings.trading.min_quote_size:
                 layer_quantity = settings.trading.min_quote_size
-            
+
             # Round to appropriate precision
             layer_price = round(layer_price, self._precision)
             layer_quantity = round(layer_quantity, 2)
-            
-            bid_layers.append(LayeredQuote(
-                layer=layer_i,
-                price=layer_price,
-                quantity=layer_quantity,
-                spread_bps=adjusted_spread_bps
-            ))
-        
+
+            bid_layers.append(
+                LayeredQuote(
+                    layer=layer_i,
+                    price=layer_price,
+                    quantity=layer_quantity,
+                    spread_bps=adjusted_spread_bps,
+                )
+            )
+
         return bid_layers
 
-    def _generate_ask_layers(self, book_ticker: BookTicker) -> list[LayeredQuote] | None:
+    def _generate_ask_layers(
+        self, book_ticker: BookTicker
+    ) -> list[LayeredQuote] | None:
         """Generate multi-layer ask quotes with ratio adjustments"""
         if not settings.is_side_enabled("ask"):
             return None
 
         ask_layers = []
         ask_reference_price = book_ticker.ask_price
-        
+
         # Get ratio adjustments
         ratio_adjustment = self.asset_ratio_manager.get_ratio_adjustment()
         bid_alloc, ask_alloc = self.asset_ratio_manager.get_capital_allocation()
-        
+
         # Calculate base layer notional with capital allocation
         total_available_liquidity = settings.trading.total_liquidity * ask_alloc
         base_layer_notional = total_available_liquidity / settings.trading.num_layers
-        
+
         for layer_i in range(1, settings.trading.num_layers + 1):
             # Calculate base spread for this layer
-            base_spread_bps = settings.trading.base_spread_bps + (layer_i - 1) * settings.trading.tick_spread_bps
-            
+            base_spread_bps = (
+                settings.trading.base_spread_bps
+                + (layer_i - 1) * settings.trading.tick_spread_bps
+            )
+
             # Apply ratio-based spread adjustment
-            adjusted_spread_bps = base_spread_bps * ratio_adjustment.ask_spread_multiplier
-            
+            adjusted_spread_bps = (
+                base_spread_bps * ratio_adjustment.ask_spread_multiplier
+            )
+
             # Calculate price according to spec: ask_reference_price * (1 + spread_bps/10000)
             layer_price = ask_reference_price * (1 + adjusted_spread_bps / 10000)
-            
+
             # Calculate quantity with progressive growth and ratio adjustment
-            growth_factor = 1 + (layer_i - 1) * settings.trading.layer_liquidity_multiplier
+            growth_factor = (
+                1 + (layer_i - 1) * settings.trading.layer_liquidity_multiplier
+            )
             base_quantity = (base_layer_notional * growth_factor) / layer_price
             layer_quantity = base_quantity * ratio_adjustment.ask_liquidity_multiplier
-            
+
             # Apply minimum size constraint
             if layer_quantity < settings.trading.min_quote_size:
                 layer_quantity = settings.trading.min_quote_size
-            
+
             # Round to appropriate precision
             layer_price = round(layer_price, self._precision)
             layer_quantity = round(layer_quantity, 2)
-            
-            ask_layers.append(LayeredQuote(
-                layer=layer_i,
-                price=layer_price,
-                quantity=layer_quantity,
-                spread_bps=adjusted_spread_bps
-            ))
-        
+
+            ask_layers.append(
+                LayeredQuote(
+                    layer=layer_i,
+                    price=layer_price,
+                    quantity=layer_quantity,
+                    spread_bps=adjusted_spread_bps,
+                )
+            )
+
         return ask_layers
 
     def _calculate_bid(
@@ -260,16 +285,16 @@ class QuoteEngine:
         # Each order should be roughly max_position_size / max_open_orders
         max_orders = settings.risk.max_open_orders
         target_notional_per_order = settings.risk.max_position_size / max_orders
-        
+
         # Calculate quantity based on target notional and bid price
         bid_qty = target_notional_per_order / bid_price
-        
+
         # Apply minimum size constraints
         bid_qty = max(bid_qty, settings.trading.min_quote_size)
-        
+
         # Apply max order size limit only if configured (qty > 0)
         # If qty is 0, use full calculated size to maximize capital utilization
-        if hasattr(settings.trading, 'qty') and settings.trading.qty > 0:
+        if hasattr(settings.trading, "qty") and settings.trading.qty > 0:
             bid_qty = min(bid_qty, settings.trading.qty)
 
         return bid_price, bid_qty
@@ -292,16 +317,16 @@ class QuoteEngine:
         # Each order should be roughly max_position_size / max_open_orders
         max_orders = settings.risk.max_open_orders
         target_notional_per_order = settings.risk.max_position_size / max_orders
-        
+
         # Calculate quantity based on target notional and ask price
         ask_qty = target_notional_per_order / ask_price
-        
+
         # Apply minimum size constraints
         ask_qty = max(ask_qty, settings.trading.min_quote_size)
-        
+
         # Apply max order size limit only if configured (qty > 0)
         # If qty is 0, use full calculated size to maximize capital utilization
-        if hasattr(settings.trading, 'qty') and settings.trading.qty > 0:
+        if hasattr(settings.trading, "qty") and settings.trading.qty > 0:
             ask_qty = min(ask_qty, settings.trading.qty)
 
         return ask_price, ask_qty
@@ -330,7 +355,9 @@ class QuoteEngine:
             max_change = max(bid_change, ask_change)
 
             # Per spec: trigger when price moves >= tick_spread_bps / 2
-            min_price_change = (settings.trading.tick_spread_bps / 2) / 10000  # Convert bps to decimal
+            min_price_change = (
+                settings.trading.tick_spread_bps / 2
+            ) / 10000  # Convert bps to decimal
             if max_change < min_price_change:
                 return True
 

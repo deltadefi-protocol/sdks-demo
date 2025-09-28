@@ -34,7 +34,7 @@ class BinanceWebSocket:
             symbol=self.symbol.upper(),
         )
         self.running = True
-        
+
         # Store reference to the current event loop
         self._loop = asyncio.get_running_loop()
 
@@ -42,17 +42,22 @@ class BinanceWebSocket:
             # Import the suppressor from main - if not available, create a dummy one
             try:
                 from . import main
+
                 SuppressPrints = main.SuppressPrints
             except (ImportError, AttributeError):
+
                 class SuppressPrints:
-                    def __enter__(self): return self
-                    def __exit__(self, exc_type, exc_val, exc_tb): pass
-                    
+                    def __enter__(self):
+                        return self
+
+                    def __exit__(self, exc_type, exc_val, exc_tb):
+                        pass
+
             # Create WebSocket client with message handler (suppress any debug output)
             with SuppressPrints():
                 self.client = SpotWebsocketStreamClient(
                     on_message=self._message_handler,
-                    stream_url="wss://stream.binance.com:9443"  # Explicit URL to avoid debug prints
+                    stream_url="wss://stream.binance.com:9443",  # Explicit URL to avoid debug prints
                 )
 
                 # Subscribe to book ticker for the symbol
@@ -146,11 +151,11 @@ class BinanceWebSocket:
             try:
                 # Wait for messages from the queue
                 data = await asyncio.wait_for(self._message_queue.get(), timeout=1.0)
-                
+
                 # Process the message with the custom handler
                 if self._on_message:
                     await self._on_message(data)
-                    
+
             except asyncio.TimeoutError:
                 # No messages in queue, continue
                 continue

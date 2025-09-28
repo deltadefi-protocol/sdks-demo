@@ -28,13 +28,13 @@ graph TD
     D --> F[WebSocket API]
     E --> G[DeltaDeFi Exchange]
     F --> G
-    
+
     G --> H[Account WebSocket]
     H --> I[Real-time Updates]
     I --> J[Balance Updates]
     I --> K[Fill Notifications]
     I --> L[Order Status]
-    
+
     J --> A
     K --> A
     L --> A

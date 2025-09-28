@@ -438,30 +438,30 @@ class OutboxRepository:
         await db_manager.execute(query, (error_message, retry_delay_seconds, event_id))
 
     async def add_event(
-        self, 
-        event_type: str, 
-        aggregate_id: str, 
+        self,
+        event_type: str,
+        aggregate_id: str,
         payload: dict[str, Any],
-        max_retries: int = 5
+        max_retries: int = 5,
     ) -> str:
         """Add a new event to the outbox"""
-        import uuid
         import json
-        
+        import uuid
+
         event_id = str(uuid.uuid4())
-        
+
         query = """
         INSERT INTO outbox (
-            event_id, event_type, aggregate_id, payload, 
+            event_id, event_type, aggregate_id, payload,
             status, retry_count, max_retries
         ) VALUES (?, ?, ?, ?, 'pending', 0, ?)
         """
-        
-        await db_manager.execute(query, (
-            event_id, event_type, aggregate_id, 
-            json.dumps(payload), max_retries
-        ))
-        
+
+        await db_manager.execute(
+            query,
+            (event_id, event_type, aggregate_id, json.dumps(payload), max_retries),
+        )
+
         return event_id
 
 

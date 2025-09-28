@@ -1,0 +1,58 @@
+version: "3.8"
+
+services:
+  trading-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: deltadefi-trading-bot:latest
+    container_name: trading-bot-local
+    env_file:
+      - .env
+    environment:
+      # Override specific settings for local Docker testing
+      - SYSTEM__DB_PATH=/app/data/trading_bot.db
+    volumes:
+      # Persist database data
+      - ./data:/app/data
+      # Optional: Mount logs directory
+      - ./logs:/app/logs
+    restart: unless-stopped
+    # Health check to monitor container status
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import sqlite3; sqlite3.connect('/app/data/trading_bot.db').execute('SELECT 1').fetchone()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    # Optional: Expose port for health checks (not needed for trading bot)
+    # ports:
+    #   - "8080:8080"
+
+    # Resource limits (similar to Cloud Run)
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+        reservations:
+          memory: 512M
+          cpus: "0.5"
+
+  # Optional: Add a database viewer (uncomment if needed)
+  # db-browser:
+  #   image: coleifer/sqlite-web
+  #   container_name: sqlite-browser
+  #   ports:
+  #     - "8081:8080"
+  #   volumes:
+  #     - ./data:/data
+  #   command: ["sqlite_web", "/data/trading_bot.db", "--host", "0.0.0.0"]
+  #   depends_on:
+  #     - trading-bot
