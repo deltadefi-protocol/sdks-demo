@@ -1,9 +1,6 @@
 # User Demonstration Guide
 
-A step-by-step guide for demonstrating the DeltaDeFi Trading Bot in a video walkthrough. This guide focuses on local deployment for easier demonstration.
-
-**Video Duration**: 3-5 minutes
-**Target Audience**: Developers and traders interested in automated market making
+A step-by-step guide for demonstrating the DeltaDeFi Trading Bot in a walkthrough. This guide focuses on local deployment for easier demonstration.
 
 ---
 
@@ -165,8 +162,6 @@ system:
 ```
 
 ### Step 4.2: Explain Key Parameters
-
-**Highlight each section in the video:**
 
 #### Trading Parameters
 
