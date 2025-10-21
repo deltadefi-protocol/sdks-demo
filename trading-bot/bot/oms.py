@@ -14,10 +14,12 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from enum import Enum
 import time
+import uuid
 
 import structlog
 
 from bot.config import settings
+from bot.db.repo import order_repo, fill_repo
 
 logger = structlog.get_logger()
 
@@ -173,12 +175,25 @@ class RiskManager:
             violations.append(f"Daily loss limit exceeded: {self.daily_pnl}")
 
         # Max skew check (for market making)
-        if (
-            position
-            and hasattr(settings.trading, "max_skew")
-            and abs(position.quantity) > Decimal(str(settings.trading.max_skew))
-        ):
-            violations.append(f"Position skew too large: {position.quantity}")
+        # Only block orders that would INCREASE the skew, allow orders that would REDUCE it
+        if position and hasattr(settings.trading, "max_skew"):
+            max_skew = Decimal(str(settings.trading.max_skew))
+            current_position = position.quantity
+
+            # Check if position exceeds skew limit
+            if abs(current_position) > max_skew:
+                # If position is LONG (positive), block BUY orders but allow SELL orders
+                if current_position > 0 and order.side == OrderSide.BUY:
+                    violations.append(
+                        f"Position skew too large: {current_position} (max: {max_skew}). "
+                        f"Cannot place BUY orders to reduce risk. Place SELL orders to reduce position."
+                    )
+                # If position is SHORT (negative), block SELL orders but allow BUY orders
+                elif current_position < 0 and order.side == OrderSide.SELL:
+                    violations.append(
+                        f"Position skew too large: {current_position} (max: {max_skew}). "
+                        f"Cannot place SELL orders to reduce risk. Place BUY orders to reduce position."
+                    )
 
         # Minimum quantity check
         if hasattr(settings.trading, "min_quote_size") and order.quantity < Decimal(
@@ -307,8 +322,22 @@ class OrderManagementSystem:
         self.orders[order_id] = order
         self.risk_manager.open_order_count += 1
 
+        # Persist order to database (CRITICAL: ensures order is registered)
+        await order_repo.create_order(
+            {
+                "order_id": order.order_id,
+                "quote_id": None,  # Will be set by quote-to-order pipeline if applicable
+                "symbol": order.symbol,
+                "side": order.side.value,
+                "order_type": order.order_type.value,
+                "price": float(order.price) if order.price else None,
+                "quantity": float(order.quantity),
+                "status": order.state.value,
+            }
+        )
+
         logger.info(
-            "Order submitted through OMS",
+            "Order submitted through OMS and persisted to database",
             order_id=order_id,
             symbol=symbol,
             side=side,
@@ -352,6 +381,8 @@ class OrderManagementSystem:
         fill_price: Decimal,
         trade_id: str | None = None,
         fee: Decimal = Decimal("0"),
+        symbol: str | None = None,
+        side: OrderSide | None = None,
     ):
         """
         Add a fill to an order and update position
@@ -362,12 +393,36 @@ class OrderManagementSystem:
             fill_price: Price of the fill
             trade_id: External trade ID
             fee: Trading fee
+            symbol: Symbol for the fill (required if order not found)
+            side: Side for the fill (required if order not found)
         """
         if order_id not in self.orders:
-            logger.warning(
-                "Fill for unknown order", order_id=order_id, trade_id=trade_id
-            )
-            return
+            # Order not tracked in OMS (may have been from previous run or external)
+            # Still update position if we have symbol and side
+            if symbol and side:
+                logger.info(
+                    "Fill for untracked order - updating position anyway",
+                    order_id=order_id,
+                    symbol=symbol,
+                    side=side,
+                    trade_id=trade_id,
+                    fill_quantity=fill_quantity,
+                    fill_price=fill_price,
+                )
+
+                # Update position directly
+                await self._update_position(
+                    symbol, side, fill_quantity, fill_price, fee
+                )
+
+                return
+            else:
+                logger.warning(
+                    "Fill for unknown order and no symbol/side provided",
+                    order_id=order_id,
+                    trade_id=trade_id,
+                )
+                return
 
         order = self.orders[order_id]
 
@@ -402,6 +457,30 @@ class OrderManagementSystem:
 
         order.updated_time = time.time()
 
+        # Persist fill to database
+        await fill_repo.create_fill(
+            {
+                "fill_id": str(uuid.uuid4()),
+                "order_id": order_id,
+                "symbol": order.symbol,
+                "side": order.side.value,
+                "price": float(fill_price),
+                "quantity": float(fill_quantity),
+                "executed_at": time.time(),
+                "trade_id": trade_id,
+                "commission": float(fee),
+                "commission_asset": None,  # Not provided in current implementation
+                "is_maker": True,  # Assume maker for limit orders
+            }
+        )
+
+        # Update order fill in database
+        await order_repo.update_order_fill(
+            order_id=order_id,
+            filled_quantity=float(order.filled_quantity),
+            avg_fill_price=float(order.avg_fill_price) if order.avg_fill_price > 0 else None,
+        )
+
         # Update position
         await self._update_position(
             order.symbol, order.side, fill_quantity, fill_price, fee
@@ -413,7 +492,7 @@ class OrderManagementSystem:
             self.risk_manager.open_order_count -= 1
 
         logger.info(
-            "Fill added to order",
+            "Fill added to order and persisted to database",
             order_id=order_id,
             fill_quantity=fill_quantity,
             fill_price=fill_price,
@@ -460,8 +539,27 @@ class OrderManagementSystem:
         if "error_message" in kwargs:
             order.error_message = kwargs["error_message"]
 
+        # Decrement open order count for failed/rejected orders
+        # (FILLED and CANCELLED are handled elsewhere)
+        if new_state in [OrderState.FAILED, OrderState.REJECTED]:
+            if self.risk_manager.open_order_count > 0:
+                self.risk_manager.open_order_count -= 1
+                logger.debug(
+                    "Decremented open order count",
+                    reason=f"Order {new_state.value}",
+                    new_count=self.risk_manager.open_order_count,
+                )
+
+        # Persist state update to database
+        await order_repo.update_order_status(
+            order_id=order.order_id,
+            status=new_state.value,
+            deltadefi_order_id=order.external_order_id,
+            error_message=order.error_message,
+        )
+
         logger.debug(
-            "Order state transition",
+            "Order state transition persisted to database",
             order_id=order.order_id,
             old_state=old_state,
             new_state=new_state,

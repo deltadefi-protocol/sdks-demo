@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS orders (
 
     -- Order state
     status TEXT NOT NULL DEFAULT 'pending' CHECK (
-        status IN ('pending', 'submitted', 'filled', 'partially_filled', 'canceled', 'rejected', 'failed')
+        status IN ('idle', 'pending', 'working', 'submitted', 'filled', 'partially_filled', 'cancelled', 'canceled', 'rejected', 'failed')
     ),
 
     -- DeltaDeFi specific
@@ -111,7 +111,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_deltadefi_id ON orders(deltadefi_order_id)
 CREATE TABLE IF NOT EXISTS fills (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     fill_id TEXT NOT NULL UNIQUE,               -- Unique fill identifier
-    order_id TEXT NOT NULL,                     -- Reference to parent order
+    order_id TEXT NOT NULL,                     -- Order ID (may be external, not FK)
 
     -- Fill details
     symbol TEXT NOT NULL,
@@ -129,7 +129,13 @@ CREATE TABLE IF NOT EXISTS fills (
     is_maker BOOLEAN DEFAULT TRUE,              -- Whether this was a maker fill
     created_at REAL NOT NULL DEFAULT (unixepoch()),
 
-    FOREIGN KEY (order_id) REFERENCES orders(order_id)
+    -- Processing status
+    status TEXT DEFAULT 'received' CHECK (
+        status IN ('received', 'reconciled', 'processed', 'error')
+    ),
+    processed_at REAL                           -- When the fill was processed
+
+    -- Note: No FK constraint - fills can reference external orders (from takers)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_fills_fill_id ON fills(fill_id);
@@ -269,7 +275,7 @@ SELECT
     (o.quantity - o.filled_quantity) as remaining_qty
 FROM orders o
 LEFT JOIN quotes q ON o.quote_id = q.quote_id
-WHERE o.status IN ('pending', 'submitted', 'partially_filled');
+WHERE o.status IN ('idle', 'pending', 'working', 'submitted', 'partially_filled');
 
 -- Recent quotes with orders
 CREATE VIEW IF NOT EXISTS v_quotes_with_orders AS

@@ -66,20 +66,43 @@ class AccountFill:
 
     @classmethod
     def from_websocket_data(cls, data: dict[str, Any]) -> "AccountFill":
-        """Create AccountFill from DeltaDeFi WebSocket message"""
-        return cls(
-            fill_id=str(data.get("fillId", data.get("id", ""))),
-            order_id=str(data.get("orderId", "")),
-            symbol=data.get("symbol", "").upper(),
-            side=data.get("side", "").lower(),
-            price=Decimal(str(data.get("price", 0))),
-            quantity=Decimal(str(data.get("quantity", 0))),
-            executed_at=float(data.get("timestamp", time.time())),
-            trade_id=str(data.get("tradeId")) if data.get("tradeId") else None,
-            commission=Decimal(str(data.get("commission", 0))),
-            commission_asset=data.get("commissionAsset", ""),
-            is_maker=bool(data.get("isMaker", True)),
-        )
+        """Create AccountFill from DeltaDeFi WebSocket message
+
+        Supports two formats:
+        1. Direct fill message: {"fillId": "...", "orderId": "...", ...}
+        2. Trading history record: {"execution_id": "...", "order_id": "...", "executed_qty": "...", ...}
+        """
+        # Check if this is a trading_history format (from SDK's OrderFillingRecordJSON)
+        if "execution_id" in data:
+            # Trading history format
+            return cls(
+                fill_id=str(data.get("execution_id", "")),
+                order_id=str(data.get("order_id", "")),
+                symbol=data.get("symbol", "").upper(),
+                side=data.get("side", "").lower(),
+                price=Decimal(str(data.get("executed_price", 0))),
+                quantity=Decimal(str(data.get("executed_qty", 0))),
+                executed_at=float(data.get("created_time", time.time())),
+                trade_id=str(data.get("execution_id", "")),
+                commission=Decimal(str(data.get("fee_charged", 0))),
+                commission_asset=data.get("fee_unit", ""),
+                is_maker=True,  # Default to maker, actual value not in response
+            )
+        else:
+            # Original direct fill format
+            return cls(
+                fill_id=str(data.get("fillId", data.get("id", ""))),
+                order_id=str(data.get("orderId", "")),
+                symbol=data.get("symbol", "").upper(),
+                side=data.get("side", "").lower(),
+                price=Decimal(str(data.get("price", 0))),
+                quantity=Decimal(str(data.get("quantity", 0))),
+                executed_at=float(data.get("timestamp", time.time())),
+                trade_id=str(data.get("tradeId")) if data.get("tradeId") else None,
+                commission=Decimal(str(data.get("commission", 0))),
+                commission_asset=data.get("commissionAsset", ""),
+                is_maker=bool(data.get("isMaker", True)),
+            )
 
 
 @dataclass
@@ -319,8 +342,8 @@ class FillReconciler:
         INSERT OR REPLACE INTO fills (
             fill_id, order_id, symbol, side, price, quantity,
             executed_at, trade_id, commission, commission_asset,
-            is_maker, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            is_maker, created_at, status, processed_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
 
         async with db_manager.get_connection() as conn:
@@ -339,6 +362,8 @@ class FillReconciler:
                     fill.commission_asset,
                     fill.is_maker,
                     fill.received_at,
+                    fill.status,
+                    fill.processed_at,
                 ),
             )
             await conn.commit()
@@ -609,6 +634,9 @@ class AccountManager:
             # Load initial balances from database
             await self._load_initial_balances()
 
+            # Fetch current balances from DeltaDeFi API
+            await self._fetch_current_balances()
+
             # Start WebSocket connection
             await self._start_websocket()
 
@@ -651,6 +679,69 @@ class AccountManager:
 
         except Exception as e:
             logger.error("Failed to load initial balances", error=str(e))
+
+    async def _fetch_current_balances(self):
+        """Fetch current balances from DeltaDeFi API"""
+        try:
+            # Fetch account balance from DeltaDeFi REST API
+            balance_response = await self.deltadefi_client.get_account_balance()
+
+            logger.info("Account balance fetched from API", response=balance_response)
+
+            # Parse and update balances
+            # The response format may vary - handle different formats
+            if isinstance(balance_response, list):
+                # Direct list format: [{"asset": "USDM", "free": "...", ...}, ...]
+                balances_data = balance_response
+            elif isinstance(balance_response, dict):
+                # Check for nested data structure
+                balances_data = balance_response.get("data", balance_response)
+            else:
+                logger.warning("Unexpected balance response format", response_type=type(balance_response))
+                return
+
+            # Handle different response formats
+            if isinstance(balances_data, dict) and "balances" in balances_data:
+                # Format: {"balances": {"USDM": {"available": "...", "locked": "..."}, ...}}
+                for asset, balance_info in balances_data["balances"].items():
+                    await self.balance_tracker.update_balance(
+                        asset=asset.upper(),
+                        available=Decimal(str(balance_info.get("available", 0))),
+                        locked=Decimal(str(balance_info.get("locked", 0))),
+                        reason=BalanceUpdateReason.INITIAL,
+                    )
+            elif isinstance(balances_data, list):
+                # Format: [{"asset": "USDM", "free": "...", "locked": "..."}, ...]
+                # Note: DeltaDeFi API uses "free" instead of "available"
+                for balance_item in balances_data:
+                    available = balance_item.get("free", balance_item.get("available", 0))
+                    await self.balance_tracker.update_balance(
+                        asset=balance_item.get("asset", "").upper(),
+                        available=Decimal(str(available)),
+                        locked=Decimal(str(balance_item.get("locked", 0))),
+                        reason=BalanceUpdateReason.INITIAL,
+                    )
+            else:
+                # Format: {"USDM": {"available": "...", "locked": "..."}, ...}
+                for asset, balance_info in balances_data.items():
+                    if isinstance(balance_info, dict):
+                        await self.balance_tracker.update_balance(
+                            asset=asset.upper(),
+                            available=Decimal(str(balance_info.get("available", 0))),
+                            locked=Decimal(str(balance_info.get("locked", 0))),
+                            reason=BalanceUpdateReason.INITIAL,
+                        )
+
+            logger.info(
+                "Current balances fetched and updated",
+                balance_count=len(self.balance_tracker.current_balances),
+            )
+
+        except Exception as e:
+            logger.warning(
+                "Failed to fetch current balances from API - will rely on WebSocket updates",
+                error=str(e),
+            )
 
     async def _start_websocket(self):
         """Start DeltaDeFi account WebSocket connection"""
@@ -707,15 +798,31 @@ class AccountManager:
             logger.debug("Account update received", message=message)
 
             # Process different types of account updates
-            update_type = message.get("type", "")
+            # Note: DeltaDeFi SDK uses 'sub_type' field for message type
+            update_type = message.get("sub_type", message.get("type", ""))
 
-            if update_type == "balance_update":
+            if update_type == "balance_update" or update_type == "balanceUpdate":
                 await self._process_balance_message(message)
-            elif update_type == "order_update":
+            elif update_type == "order_update" or update_type == "orderUpdate":
                 await self._process_order_message(message)
-            else:
+            elif update_type == "fill" or update_type == "trade":
+                await self._handle_fill_update(message)
+            elif update_type == "trading_history":
+                # Trading history contains fill/execution records
+                await self._handle_trading_history_update(message)
+            elif update_type in ["orders_history", "positions"]:
+                # Historical data messages on initial connection - can be ignored or logged at debug level
                 logger.debug(
-                    "Unknown account update type", type=update_type, message=message
+                    "Received historical data message",
+                    sub_type=update_type,
+                    data_count=message.get("total_count", 0),
+                )
+            else:
+                logger.info(
+                    "Unknown account update type - logging for debugging",
+                    sub_type=message.get("sub_type"),
+                    type=message.get("type"),
+                    message_keys=list(message.keys()),
                 )
 
             # Notify callbacks
@@ -747,6 +854,157 @@ class AccountManager:
 
         except Exception as e:
             logger.error("Error handling fill update", error=str(e), message=message)
+
+    async def _handle_trading_history_update(self, message: dict[str, Any]):
+        """Handle trading history messages containing fill records
+
+        Trading history messages contain execution/fill records in this format:
+        {
+            "type": "Account",
+            "sub_type": "trading_history",
+            "data": [{
+                "execution_id": "...",
+                "order_id": "...",
+                "symbol": "ADAUSDM",
+                "executed_qty": "10",
+                "executed_price": 0.75,
+                "side": "buy",
+                "fee_charged": "0.01",
+                "fee_unit": "USDM",
+                "created_time": 1234567890
+            }, ...]
+        }
+        """
+        try:
+            # Extract fill records from data array
+            data = message.get("data", [])
+
+            if not data:
+                logger.debug("Trading history message with no data", message=message)
+                return
+
+            # Process each page of data
+            # Structure: data is an array where each element has:
+            # - "orders": array of orders with nested "fills"
+            # - "order_filling_records": array of execution records
+            fills_processed = 0
+            for page_data in data:
+                try:
+                    # Extract fill records from order_filling_records array
+                    order_filling_records = page_data.get("order_filling_records", [])
+
+                    for fill_record in order_filling_records:
+                        try:
+                            # Create AccountFill from the execution record
+                            fill = AccountFill.from_websocket_data(fill_record)
+
+                            logger.info(
+                                "Fill received from order_filling_records",
+                                fill_id=fill.fill_id,
+                                order_id=fill.order_id,
+                                symbol=fill.symbol,
+                                side=fill.side,
+                                quantity=float(fill.quantity),
+                                price=float(fill.price),
+                            )
+
+                            # Process fill through reconciler
+                            success = await self.fill_reconciler.process_fill(fill)
+
+                            if success:
+                                fills_processed += 1
+                            else:
+                                logger.warning(
+                                    "Fill processing failed", fill_id=fill.fill_id
+                                )
+
+                        except Exception as e:
+                            logger.error(
+                                "Error processing order_filling_record",
+                                error=str(e),
+                                record=fill_record,
+                            )
+
+                    # Also extract fills from nested orders array
+                    orders = page_data.get("orders", [])
+                    for order in orders:
+                        fills = order.get("fills", [])
+                        for fill_data in fills:
+                            try:
+                                # Augment fill_data with order-level information
+                                fill_data_with_order_info = {
+                                    "id": fill_data.get("id"),
+                                    "order_id": fill_data.get("order_id"),
+                                    "execution_price": fill_data.get("execution_price"),
+                                    "filled_amount": fill_data.get("filled_amount"),
+                                    "fee_unit": fill_data.get("fee_unit"),
+                                    "fee_amount": fill_data.get("fee_amount"),
+                                    "role": fill_data.get("role"),
+                                    "create_time": fill_data.get("create_time"),
+                                    # Add from parent order
+                                    "symbol": order.get("symbol"),
+                                    "side": order.get("side"),
+                                }
+
+                                # Create AccountFill (needs special handling for nested fills format)
+                                fill = AccountFill(
+                                    fill_id=str(fill_data.get("id", "")),
+                                    order_id=str(fill_data.get("order_id", "")),
+                                    symbol=order.get("symbol", "").upper(),
+                                    side=order.get("side", "").lower(),
+                                    price=Decimal(str(fill_data.get("execution_price", 0))),
+                                    quantity=Decimal(str(fill_data.get("filled_amount", 0))),
+                                    executed_at=float(fill_data.get("create_time", time.time())),
+                                    trade_id=str(fill_data.get("id", "")),
+                                    commission=Decimal(str(fill_data.get("fee_amount", 0))),
+                                    commission_asset=fill_data.get("fee_unit", ""),
+                                    is_maker=fill_data.get("role", "maker") == "maker",
+                                )
+
+                                logger.info(
+                                    "Fill received from order fills array",
+                                    fill_id=fill.fill_id,
+                                    order_id=fill.order_id,
+                                    symbol=fill.symbol,
+                                    side=fill.side,
+                                    quantity=float(fill.quantity),
+                                    price=float(fill.price),
+                                )
+
+                                # Process fill through reconciler
+                                success = await self.fill_reconciler.process_fill(fill)
+
+                                if success:
+                                    fills_processed += 1
+                                else:
+                                    logger.warning(
+                                        "Fill processing failed", fill_id=fill.fill_id
+                                    )
+
+                            except Exception as e:
+                                logger.error(
+                                    "Error processing nested fill from order",
+                                    error=str(e),
+                                    fill_data=fill_data,
+                                )
+
+                except Exception as e:
+                    logger.error(
+                        "Error processing page data",
+                        error=str(e),
+                        page_data=page_data,
+                    )
+
+            logger.info(
+                "Trading history processed",
+                total_records=len(data),
+                fills_processed=fills_processed,
+            )
+
+        except Exception as e:
+            logger.error(
+                "Error handling trading history update", error=str(e), message=message
+            )
 
     async def _handle_balance_update(self, message: dict[str, Any]):
         """Handle balance update messages"""

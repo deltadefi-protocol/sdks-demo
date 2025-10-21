@@ -107,8 +107,19 @@ class QuoteEngine:
         """
         current_time = time.time()
 
+        logger.debug(
+            "🔍 Quote generation called",
+            symbol=book_ticker.symbol,
+            bid=book_ticker.bid_price,
+            ask=book_ticker.ask_price,
+            time_since_last_quote_ms=(current_time - self.last_quote_time) * 1000
+            if self.last_quote_time > 0
+            else None,
+        )
+
         # Check if we should skip requoting based on time threshold
         if self._should_skip_requote(book_ticker, current_time):
+            logger.debug("⏭️  Quote generation skipped by _should_skip_requote check")
             return None
 
         # Check if data is stale
@@ -123,6 +134,13 @@ class QuoteEngine:
         bid_layers = self._generate_bid_layers(book_ticker)
         ask_layers = self._generate_ask_layers(book_ticker)
 
+        # Calculate time since last quote BEFORE updating timestamp
+        time_since_last_quote_ms = (
+            round((current_time - self.last_quote_time) * 1000, 2)
+            if self.last_quote_time > 0
+            else None
+        )
+
         # Update state
         self.last_quote_time = current_time
         self.last_source_prices = book_ticker
@@ -135,8 +153,8 @@ class QuoteEngine:
             source_data=book_ticker,
         )
 
-        logger.debug(
-            "Generated multi-layer quote",
+        logger.info(
+            "✅ Quote generation SUCCESSFUL",
             symbol=quote.symbol,
             bid_layers_count=len(bid_layers) if bid_layers else 0,
             ask_layers_count=len(ask_layers) if ask_layers else 0,
@@ -145,6 +163,7 @@ class QuoteEngine:
             else None,
             source_bid=book_ticker.bid_price,
             source_ask=book_ticker.ask_price,
+            time_since_last_quote_ms=time_since_last_quote_ms,
         )
 
         return quote
@@ -346,6 +365,14 @@ class QuoteEngine:
         # Check minimum time threshold
         time_since_last_quote = (current_time - self.last_quote_time) * 1000  # ms
         if time_since_last_quote < settings.trading.min_requote_ms:
+            logger.debug(
+                "⏱️  Skipping requote: time threshold not met",
+                time_since_last_quote_ms=round(time_since_last_quote, 2),
+                min_requote_ms=settings.trading.min_requote_ms,
+                time_remaining_ms=round(
+                    settings.trading.min_requote_ms - time_since_last_quote, 2
+                ),
+            )
             return True
 
         # Check price movement threshold
@@ -358,7 +385,25 @@ class QuoteEngine:
             min_price_change = (
                 settings.trading.tick_spread_bps / 2
             ) / 10000  # Convert bps to decimal
+
             if max_change < min_price_change:
+                # Calculate the percentage change for logging
+                mid_price = (book_ticker.bid_price + book_ticker.ask_price) / 2
+                max_change_bps = (max_change / mid_price) * 10000
+
+                logger.debug(
+                    "📊 Skipping requote: price movement threshold not met",
+                    bid_change=round(bid_change, 6),
+                    ask_change=round(ask_change, 6),
+                    max_change=round(max_change, 6),
+                    max_change_bps=round(max_change_bps, 2),
+                    min_price_change=round(min_price_change, 6),
+                    min_price_change_bps=settings.trading.tick_spread_bps / 2,
+                    current_bid=book_ticker.bid_price,
+                    current_ask=book_ticker.ask_price,
+                    last_bid=self.last_source_prices.bid_price,
+                    last_ask=self.last_source_prices.ask_price,
+                )
                 return True
 
         return False
