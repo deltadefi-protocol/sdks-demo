@@ -236,40 +236,39 @@ make run
 
 ### Step 5.3: Observe Initial Activity (Expected output example)
 
+**User can put the DeltaDeFi UI in parallel with the trading bot terminal to see the order records being updated in DeltaDeFi trading page**
+
 **Point out key events in the logs:**
 
 1. ✅ Database initialization
 
 ```json
-{
-  "event": "Database initialized",
-  "level": "INFO",
-  "db_path": "trading_bot.db"
-}
+{"event": "Database initialized successfully", "logger": "bot.db.sqlite", "level": "info", "timestamp": "2025-10-21T12:57:28.600567Z"}
+{"event": "\u2705 Database initialized successfully", "logger": "__main__", "level": "info", "timestamp": "2025-10-21T12:57:28.600633Z"}
 ```
 
 2. ✅ WebSocket connections (Binance + DeltaDeFi)
 
 ```json
-{"event": "Connecting to Binance WebSocket", "level": "INFO", "symbol": "ADAUSDT"}
-{"event": "Connected to Binance WebSocket successfully", "level": "INFO"}
-{"event": "Connecting to DeltaDeFi", "level": "INFO", "mode": "testnet"}
-{"event": "WebSocket connected successfully", "level": "INFO"}
+{"symbol": "ADAUSDT", "event": "\ud83d\udd0c Connecting to Binance WebSocket using sidan-binance-py", "logger": "bot.binance_ws", "level": "info", "timestamp": "2025-10-21T12:57:29.757538Z"}
+{"symbol": "ADAUSDT", "event": "\u2705 Connected to Binance WebSocket successfully", "logger": "bot.binance_ws", "level": "info", "timestamp": "2025-10-21T12:57:30.116613Z"}
+{"event": "Connecting to DeltaDeFi WebSocket...", "logger": "bot.deltadefi", "level": "info", "timestamp": "2025-10-21T12:57:29.318469Z"}
+WebSocket connected successfully to wss://stream-staging.deltadefi.io/accounts/stream?api_key=<api-key>
 ```
 
 3. ✅ Quote generation
 
 ```json
 {
-  "quote_id": "quote_id",
+  "quote_id": "fde3a59f-fe0b-4dad-8c02-19c3c1095f67",
   "symbol_dst": "ADAUSDM",
-  "bid_price": 0.634592,
-  "ask_price": 0.635708,
+  "bid_price": 0.64898,
+  "ask_price": 0.65012,
   "status": "orders_submitted",
   "event": "\ud83c\udfaf Quote processed and orders submitted",
   "logger": "__main__",
   "level": "info",
-  "timestamp": "2025-10-19T10:10:14.456531Z"
+  "timestamp": "2025-10-21T12:57:34.133076Z"
 }
 ```
 
@@ -277,15 +276,15 @@ make run
 
 ```json
 {
-  "order_id": "oms_1760868610328189",
-  "quote_id": "8f93873f-01bb-4890-bc1e-ec44cac12471",
-  "external_order_id": null,
+  "order_id": "oms_1761051450367364",
+  "quote_id": "fde3a59f-fe0b-4dad-8c02-19c3c1095f67",
+  "external_order_id": "dc072779-4444-450d-8c7a-2eae65e48514",
   "symbol": "ADAUSDM",
   "side": "sell",
   "event": "Order submitted to DeltaDeFi",
   "logger": "bot.quote_to_order_pipeline",
   "level": "info",
-  "timestamp": "2025-10-19T10:10:13.737666Z"
+  "timestamp": "2025-10-21T12:57:33.629374Z"
 }
 ```
 
@@ -296,14 +295,14 @@ make run
   "symbol": "ADAUSDM",
   "side": "sell",
   "type": "limit",
-  "quantity": 314,
-  "price": 0.6376,
-  "original_price": 0.637614,
+  "quantity": 1382,
+  "price": 0.6514,
+  "original_price": 0.651419,
   "kwargs": {},
   "event": "Submitting order",
   "logger": "bot.deltadefi",
   "level": "info",
-  "timestamp": "2025-10-19T10:10:13.737940Z"
+  "timestamp": "2025-10-21T12:57:33.199808Z"
 }
 ```
 
@@ -313,20 +312,20 @@ make run
 {
   "result": {
     "order": {
-      "order_id": "35efe46e-1fd0-4de8-8b9b-5b1fa25ef9f2",
+      "order_id": "c48aa840-d8f5-4635-8c11-5295fe8ab27f",
       "status": "processing",
       "symbol": "ADAUSDM",
-      "orig_qty": "314",
+      "orig_qty": "922",
       "executed_qty": "0",
       "side": "sell",
-      "price": 0.6376,
+      "price": 0.6508,
       "type": "limit",
       "fee_charged": "0",
       "fee_unit": "c69b981db7a65e339a6d783755f85a2e03afa1cece9714c55fe4c9135553444d",
       "executed_price": 0,
       "slippage": "0",
-      "create_time": 1760868614,
-      "update_time": 1760868614
+      "create_time": 1761051452,
+      "update_time": 1761051452
     }
   },
   "symbol": "ADAUSDM",
@@ -334,7 +333,7 @@ make run
   "event": "Order submitted successfully",
   "logger": "bot.deltadefi",
   "level": "info",
-  "timestamp": "2025-10-19T10:10:14.071430Z"
+  "timestamp": "2025-10-21T12:57:33.196192Z"
 }
 ```
 
@@ -349,6 +348,12 @@ You could watch the real-time logs in the same terminal that you run the `make r
 ### Step 6.2: Key Metrics to Highlight
 
 **Status Report Example:**
+
+Status report is a point-in-time (every 30 seconds) to show some key metrics of the trading bot. Can run below command to focus on the status report:
+
+```bash
+ make run | grep --line-buffered "Trading Bot System Status"
+```
 
 ```json
 {
