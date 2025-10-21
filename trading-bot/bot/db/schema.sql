@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS orders (
 
     -- Order state
     status TEXT NOT NULL DEFAULT 'pending' CHECK (
-        status IN ('pending', 'submitted', 'filled', 'partially_filled', 'canceled', 'rejected', 'failed')
+        status IN ('idle', 'pending', 'working', 'submitted', 'filled', 'partially_filled', 'cancelled', 'canceled', 'rejected', 'failed')
     ),
 
     -- DeltaDeFi specific
@@ -275,7 +275,7 @@ SELECT
     (o.quantity - o.filled_quantity) as remaining_qty
 FROM orders o
 LEFT JOIN quotes q ON o.quote_id = q.quote_id
-WHERE o.status IN ('pending', 'submitted', 'partially_filled');
+WHERE o.status IN ('idle', 'pending', 'working', 'submitted', 'partially_filled');
 
 -- Recent quotes with orders
 CREATE VIEW IF NOT EXISTS v_quotes_with_orders AS

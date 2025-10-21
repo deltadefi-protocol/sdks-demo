@@ -17,6 +17,7 @@ import time
 import structlog
 
 from .config import settings
+from .db.repo import order_repo
 from .deltadefi import DeltaDeFiClient
 from .oms import OrderManagementSystem
 
@@ -118,8 +119,8 @@ class UnregisteredOrderCleanupService:
                 logger.debug("No open orders found on exchange")
                 return
 
-            # Get all registered orders from OMS
-            oms_orders = self._get_registered_orders()
+            # Get all registered orders from database
+            oms_orders = await self._get_registered_orders()
 
             # Find unregistered orders
             unregistered_orders = self._find_unregistered_orders(
@@ -175,20 +176,21 @@ class UnregisteredOrderCleanupService:
             )
             raise
 
-    def _get_registered_orders(self) -> set[str]:
-        """Get all registered order IDs from OMS"""
-        # Get all orders that are in working state (should exist on exchange)
-        working_orders = self.oms.get_open_orders(symbol=settings.trading.symbol_dst)
+    async def _get_registered_orders(self) -> set[str]:
+        """Get all registered order IDs from database"""
+        # Get all active orders from database (not just in-memory OMS)
+        active_orders = await order_repo.get_active_orders(symbol=settings.trading.symbol_dst)
 
-        # Extract external order IDs (DeltaDeFi order IDs)
+        # Extract DeltaDeFi order IDs (external_order_id field)
         registered_external_ids = set()
 
-        for order in working_orders:
-            if order.external_order_id:
-                registered_external_ids.add(order.external_order_id)
+        for order in active_orders:
+            deltadefi_order_id = order.get("deltadefi_order_id")
+            if deltadefi_order_id:
+                registered_external_ids.add(deltadefi_order_id)
 
         logger.debug(
-            "Retrieved registered orders from OMS",
+            "Retrieved registered orders from database",
             count=len(registered_external_ids),
             orders=list(registered_external_ids)[:10],  # Log first 10 for debugging
         )

@@ -523,6 +523,7 @@ class QuoteToOrderPipeline:
     async def _generate_orders(self, quote: PersistentQuote):
         """Generate and submit orders from quote (supports both single-layer and multi-layer)"""
         orders_created = []
+        failed_orders = []
 
         try:
             # Multi-layer order generation (preferred)
@@ -533,14 +534,24 @@ class QuoteToOrderPipeline:
                         if (
                             layer.quantity > 0
                         ):  # Only create orders with positive quantity
-                            bid_order = await self._create_order(
-                                quote,
-                                OrderSide.BUY,
-                                Decimal(str(layer.price)),
-                                Decimal(str(layer.quantity)),
-                            )
-                            orders_created.append(bid_order)
-                            quote.bid_order_ids.append(bid_order.order_id)
+                            try:
+                                bid_order = await self._create_order(
+                                    quote,
+                                    OrderSide.BUY,
+                                    Decimal(str(layer.price)),
+                                    Decimal(str(layer.quantity)),
+                                )
+                                orders_created.append(bid_order)
+                                quote.bid_order_ids.append(bid_order.order_id)
+                            except Exception as e:
+                                failed_orders.append({"side": "BUY", "error": str(e)})
+                                logger.warning(
+                                    "Failed to create bid order, continuing with other orders",
+                                    quote_id=quote.quote_id,
+                                    layer_price=layer.price,
+                                    layer_quantity=layer.quantity,
+                                    error=str(e),
+                                )
 
                 # Generate ask orders for each layer
                 if quote.ask_layers and "ask" in quote.sides_enabled:
@@ -548,14 +559,24 @@ class QuoteToOrderPipeline:
                         if (
                             layer.quantity > 0
                         ):  # Only create orders with positive quantity
-                            ask_order = await self._create_order(
-                                quote,
-                                OrderSide.SELL,
-                                Decimal(str(layer.price)),
-                                Decimal(str(layer.quantity)),
-                            )
-                            orders_created.append(ask_order)
-                            quote.ask_order_ids.append(ask_order.order_id)
+                            try:
+                                ask_order = await self._create_order(
+                                    quote,
+                                    OrderSide.SELL,
+                                    Decimal(str(layer.price)),
+                                    Decimal(str(layer.quantity)),
+                                )
+                                orders_created.append(ask_order)
+                                quote.ask_order_ids.append(ask_order.order_id)
+                            except Exception as e:
+                                failed_orders.append({"side": "SELL", "error": str(e)})
+                                logger.warning(
+                                    "Failed to create ask order, continuing with other orders",
+                                    quote_id=quote.quote_id,
+                                    layer_price=layer.price,
+                                    layer_quantity=layer.quantity,
+                                    error=str(e),
+                                )
 
                 # Set legacy fields from first orders for backwards compatibility
                 if quote.bid_order_ids:
@@ -567,21 +588,37 @@ class QuoteToOrderPipeline:
             else:
                 # Generate bid order if enabled and valid
                 if quote.has_bid and "bid" in quote.sides_enabled:
-                    bid_order = await self._create_order(
-                        quote, OrderSide.BUY, quote.bid_price, quote.bid_qty
-                    )
-                    orders_created.append(bid_order)
-                    quote.bid_order_id = bid_order.order_id
-                    quote.bid_order_ids = [bid_order.order_id]
+                    try:
+                        bid_order = await self._create_order(
+                            quote, OrderSide.BUY, quote.bid_price, quote.bid_qty
+                        )
+                        orders_created.append(bid_order)
+                        quote.bid_order_id = bid_order.order_id
+                        quote.bid_order_ids = [bid_order.order_id]
+                    except Exception as e:
+                        failed_orders.append({"side": "BUY", "error": str(e)})
+                        logger.warning(
+                            "Failed to create bid order, continuing with ask order",
+                            quote_id=quote.quote_id,
+                            error=str(e),
+                        )
 
                 # Generate ask order if enabled and valid
                 if quote.has_ask and "ask" in quote.sides_enabled:
-                    ask_order = await self._create_order(
-                        quote, OrderSide.SELL, quote.ask_price, quote.ask_qty
-                    )
-                    orders_created.append(ask_order)
-                    quote.ask_order_id = ask_order.order_id
-                    quote.ask_order_ids = [ask_order.order_id]
+                    try:
+                        ask_order = await self._create_order(
+                            quote, OrderSide.SELL, quote.ask_price, quote.ask_qty
+                        )
+                        orders_created.append(ask_order)
+                        quote.ask_order_id = ask_order.order_id
+                        quote.ask_order_ids = [ask_order.order_id]
+                    except Exception as e:
+                        failed_orders.append({"side": "SELL", "error": str(e)})
+                        logger.warning(
+                            "Failed to create ask order, continuing",
+                            quote_id=quote.quote_id,
+                            error=str(e),
+                        )
 
             if orders_created:
                 quote.status = QuoteStatus.ORDERS_CREATED
@@ -594,28 +631,52 @@ class QuoteToOrderPipeline:
 
                 self.orders_generated += len(orders_created)
 
-                logger.info(
-                    "Orders generated from quote",
-                    quote_id=quote.quote_id,
-                    orders_count=len(orders_created),
-                    bid_layers_count=len(quote.bid_order_ids),
-                    ask_layers_count=len(quote.ask_order_ids),
-                    bid_order_ids=quote.bid_order_ids[:3]
+                # Include information about any failed orders
+                log_params = {
+                    "quote_id": quote.quote_id,
+                    "orders_count": len(orders_created),
+                    "bid_layers_count": len(quote.bid_order_ids),
+                    "ask_layers_count": len(quote.ask_order_ids),
+                    "bid_order_ids": quote.bid_order_ids[:3]
                     + (["..."] if len(quote.bid_order_ids) > 3 else []),
-                    ask_order_ids=quote.ask_order_ids[:3]
+                    "ask_order_ids": quote.ask_order_ids[:3]
                     + (["..."] if len(quote.ask_order_ids) > 3 else []),
-                )
+                }
+
+                if failed_orders:
+                    log_params.update({
+                        "failed_count": len(failed_orders),
+                        "failed_sides": [f["side"] for f in failed_orders],
+                    })
+                    logger.info("Orders generated from quote (some orders failed)", **log_params)
+                else:
+                    logger.info("Orders generated from quote", **log_params)
 
                 # Submit orders to exchange
                 await self._submit_orders(quote, orders_created)
             else:
-                logger.warning(
-                    "No orders generated from quote",
-                    quote_id=quote.quote_id,
-                    has_bid=quote.has_bid,
-                    has_ask=quote.has_ask,
-                    sides_enabled=quote.sides_enabled,
-                )
+                # Log detailed information about why no orders were created
+                # Note: We don't raise an exception here - just log and continue
+                # The bot will try again on the next quote
+                if failed_orders:
+                    logger.warning(
+                        "No orders generated from quote - all orders failed risk checks",
+                        quote_id=quote.quote_id,
+                        has_bid=quote.has_bid,
+                        has_ask=quote.has_ask,
+                        sides_enabled=quote.sides_enabled,
+                        failed_count=len(failed_orders),
+                        failed_sides=[f["side"] for f in failed_orders],
+                        sample_error=failed_orders[0]["error"] if failed_orders else None,
+                    )
+                else:
+                    logger.warning(
+                        "No orders generated from quote - no valid orders to create",
+                        quote_id=quote.quote_id,
+                        has_bid=quote.has_bid,
+                        has_ask=quote.has_ask,
+                        sides_enabled=quote.sides_enabled,
+                    )
 
         except Exception:
             # Cancel any orders that were created

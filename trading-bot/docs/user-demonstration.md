@@ -201,12 +201,12 @@ nano config.yaml
 
 ```yaml
 trading:
-  total_liquidity: 500.0 # Smaller for demo
+  total_liquidity: 3000.0 # Smaller for demo
   num_layers: 5 # Fewer layers for clarity
 
 risk:
-  max_position_size: 500.0 # Lower limits for safety
-  max_daily_loss: 100.0
+  max_position_size: 3000.0 # Lower limits for safety
+  max_daily_loss: 500.0
 ```
 
 ---
@@ -407,85 +407,24 @@ You could watch the real-time logs in the same terminal that you run the `make r
 ### Graceful Shutdown (Recommended)
 
 ```bash
-# Send SIGTERM for graceful shutdown
+# Send SIGTERM in another terminal for graceful shutdown
 pkill -SIGTERM -f "python -m bot.main"
 ```
 
 **Expected Behavior:**
 
 - Bot receives shutdown signal
-- Cancels all open orders
-- Closes WebSocket connections
-- Flushes database
 - Exits cleanly
 
 **Expected Log Output:**
 
 ```json
-{"event": "Shutdown signal received", "level": "WARNING"}
-{"event": "Cancelling all open orders", "level": "INFO", "count": 20}
-{"event": "Orders cancelled", "level": "INFO", "cancelled": 20}
-{"event": "Closing WebSocket connections", "level": "INFO"}
-{"event": "Database flushed", "level": "INFO"}
-{"event": "Bot stopped", "level": "INFO", "uptime": "5m 15s"}
-```
-
-### Method 2: Emergency Stop via Config
-
-```bash
-# In another terminal, update config
-nano config.yaml
-```
-
-**Set emergency stop flag:**
-
-```yaml
-risk:
-  emergency_stop: true # Change from false to true
-```
-
-**Bot behavior:**
-
-- Detects config change on next check
-- Immediately halts all trading activity
-- Cancels all open orders
-- Stops generating new quotes
-- Continues monitoring (doesn't exit)
-
-**Expected Log Output:**
-
-```json
-{"event": "EMERGENCY STOP ACTIVATED", "level": "ERROR"}
-{"event": "Halting all trading activity", "level": "WARNING"}
-{"event": "Cancelling all orders", "level": "INFO"}
-{"event": "Trading halted - bot in emergency stop mode", "level": "WARNING"}
-```
-
-### Method 3: Force Stop (Last Resort)
-
-```bash
-# Force kill (not recommended - may leave orphaned orders)
-pkill -SIGKILL -f "python -m bot.main"
-```
-
-**⚠️ Warning:** Force stop doesn't allow cleanup. Use only if graceful shutdown fails.
-
-### Step 9.4: Verify Shutdown
-
-```bash
-# Check no orders remain open
-sqlite3 trading_bot.db "SELECT COUNT(*) FROM orders WHERE state = 'working';"
-```
-
-**Expected Output:**
-
-```
-0  # All orders cancelled
-```
-
-```bash
-# Check final status in logs
-tail -n 20 logs/trading-bot.log | jq '.'
+{
+  "event": "\u2705 Trading Bot System stopped gracefully",
+  "logger": "__main__",
+  "level": "info",
+  "timestamp": "2025-10-21T10:50:02.769976Z"
+}
 ```
 
 ---
@@ -504,11 +443,4 @@ rm trading_bot.db trading_bot.db-shm trading_bot.db-wal
 ```bash
 # Clear logs
 rm -rf logs/
-```
-
-### Reset Configuration
-
-```bash
-# Restore original config
-git checkout config.yaml .env
 ```

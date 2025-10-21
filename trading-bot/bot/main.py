@@ -482,15 +482,44 @@ class TradingBot:
             else None,
         }
 
+        # Fetch actual open orders count from DeltaDeFi API
+        actual_open_orders = 0
+        if self.deltadefi_client:
+            try:
+                open_orders = await self.deltadefi_client.get_open_orders(
+                    symbol=settings.trading.symbol_dst
+                )
+                actual_open_orders = len(open_orders)
+            except Exception as e:
+                logger.warning(
+                    "Failed to fetch open orders from DeltaDeFi, using OMS count",
+                    error=str(e),
+                )
+                # Fallback to OMS count if API call fails
+                if self.oms:
+                    portfolio = self.oms.get_portfolio_summary()
+                    actual_open_orders = portfolio["open_orders"]
+
         # OMS status
         if self.oms:
             portfolio = self.oms.get_portfolio_summary()
+            oms_open_orders = portfolio["open_orders"]
+
+            # Log discrepancy if OMS count differs from actual count
+            if actual_open_orders != oms_open_orders:
+                logger.warning(
+                    "Open order count mismatch",
+                    oms_count=oms_open_orders,
+                    actual_count=actual_open_orders,
+                    difference=actual_open_orders - oms_open_orders,
+                )
+
             status.update(
                 {
-                    "open_orders": portfolio["open_orders"],
+                    "open_orders": actual_open_orders,  # Use actual count from API
                     "max_orders": settings.risk.max_open_orders,
                     "order_utilization_pct": round(
-                        (portfolio["open_orders"] / settings.risk.max_open_orders)
+                        (actual_open_orders / settings.risk.max_open_orders)
                         * 100,
                         1,
                     ),
