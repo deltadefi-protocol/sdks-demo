@@ -27,7 +27,7 @@ from .db.outbox_worker import OutboxWorker
 from .db.sqlite import db_manager
 from .deltadefi import DeltaDeFiClient
 from .log_config import setup_logging
-from .oms import OrderManagementSystem
+from .oms import OrderManagementSystem, OrderState
 from .quote import QuoteEngine, create_book_ticker_from_binance
 from .quote_to_order_pipeline import QuoteToOrderPipeline
 from .rate_limiter import TokenBucketRateLimiter
@@ -327,6 +327,8 @@ class TradingBot:
 
     async def _on_fill_received(self, fill):
         """Handle fill received from account manager"""
+        from .oms import OrderSide
+
         logger.info(
             "💰 Fill received",
             fill_id=fill.fill_id,
@@ -337,6 +339,19 @@ class TradingBot:
             price=float(fill.price),
         )
 
+        # Convert side string to OrderSide enum
+        try:
+            if fill.side.lower() in ["buy", "bid"]:
+                oms_side = OrderSide.BUY
+            elif fill.side.lower() in ["sell", "ask"]:
+                oms_side = OrderSide.SELL
+            else:
+                logger.error("Unknown fill side", side=fill.side, fill_id=fill.fill_id)
+                return
+        except Exception as e:
+            logger.error("Error converting fill side", error=str(e), fill_id=fill.fill_id)
+            return
+
         # Update OMS with fill
         try:
             await self.oms.add_fill(
@@ -345,6 +360,8 @@ class TradingBot:
                 fill_price=fill.price,
                 trade_id=fill.trade_id,
                 fee=fill.commission,
+                symbol=fill.symbol,
+                side=oms_side,
             )
         except Exception as e:
             logger.error(
@@ -370,7 +387,7 @@ class TradingBot:
 
     async def _on_pipeline_order_update(self, order):
         """Handle order updates from quote pipeline"""
-        if order.state == "WORKING":
+        if order.state == OrderState.WORKING:
             self.orders_submitted += 1
 
         logger.debug(

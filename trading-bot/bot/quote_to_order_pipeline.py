@@ -435,11 +435,11 @@ class QuoteToOrderPipeline:
             # Step 1: Persist quote to database
             await self._persist_quote(persistent_quote)
 
-            # Step 2: Generate and submit orders
-            await self._generate_orders(persistent_quote)
-
-            # Step 3: Track active quote
+            # Step 2: Track active quote (BEFORE submitting orders so callbacks can find it)
             self.active_quotes[persistent_quote.quote_id] = persistent_quote
+
+            # Step 3: Generate and submit orders
+            await self._generate_orders(persistent_quote)
 
             # Step 4: Validate we only have one active quote per symbol (safety check)
             active_for_symbol = [
@@ -479,6 +479,9 @@ class QuoteToOrderPipeline:
                 error=str(e),
                 exc_info=True,
             )
+
+            # Remove from active quotes if it was added
+            self.active_quotes.pop(persistent_quote.quote_id, None)
 
             # Mark as failed
             persistent_quote.status = QuoteStatus.CANCELLED
@@ -692,11 +695,15 @@ class QuoteToOrderPipeline:
                 )
 
                 # Update order state
+                # Extract external order ID from nested result structure
+                external_order_id = None
+                if "order" in result and "order_id" in result["order"]:
+                    external_order_id = str(result["order"]["order_id"])
 
                 await self.oms.update_order_state(
                     order.order_id,
                     OrderState.WORKING,
-                    external_order_id=str(result.get("order_id")),
+                    external_order_id=external_order_id,
                 )
 
                 submitted_count += 1
@@ -706,7 +713,7 @@ class QuoteToOrderPipeline:
                     "Order submitted to DeltaDeFi",
                     order_id=order.order_id,
                     quote_id=quote.quote_id,
-                    external_order_id=result.get("order_id"),
+                    external_order_id=external_order_id,
                     symbol=order.symbol,
                     side=order.side,
                 )

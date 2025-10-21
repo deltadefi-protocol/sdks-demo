@@ -352,6 +352,8 @@ class OrderManagementSystem:
         fill_price: Decimal,
         trade_id: str | None = None,
         fee: Decimal = Decimal("0"),
+        symbol: str | None = None,
+        side: OrderSide | None = None,
     ):
         """
         Add a fill to an order and update position
@@ -362,12 +364,36 @@ class OrderManagementSystem:
             fill_price: Price of the fill
             trade_id: External trade ID
             fee: Trading fee
+            symbol: Symbol for the fill (required if order not found)
+            side: Side for the fill (required if order not found)
         """
         if order_id not in self.orders:
-            logger.warning(
-                "Fill for unknown order", order_id=order_id, trade_id=trade_id
-            )
-            return
+            # Order not tracked in OMS (may have been from previous run or external)
+            # Still update position if we have symbol and side
+            if symbol and side:
+                logger.info(
+                    "Fill for untracked order - updating position anyway",
+                    order_id=order_id,
+                    symbol=symbol,
+                    side=side,
+                    trade_id=trade_id,
+                    fill_quantity=fill_quantity,
+                    fill_price=fill_price,
+                )
+
+                # Update position directly
+                await self._update_position(
+                    symbol, side, fill_quantity, fill_price, fee
+                )
+
+                return
+            else:
+                logger.warning(
+                    "Fill for unknown order and no symbol/side provided",
+                    order_id=order_id,
+                    trade_id=trade_id,
+                )
+                return
 
         order = self.orders[order_id]
 
@@ -459,6 +485,17 @@ class OrderManagementSystem:
             order.external_order_id = kwargs["external_order_id"]
         if "error_message" in kwargs:
             order.error_message = kwargs["error_message"]
+
+        # Decrement open order count for failed/rejected orders
+        # (FILLED and CANCELLED are handled elsewhere)
+        if new_state in [OrderState.FAILED, OrderState.REJECTED]:
+            if self.risk_manager.open_order_count > 0:
+                self.risk_manager.open_order_count -= 1
+                logger.debug(
+                    "Decremented open order count",
+                    reason=f"Order {new_state.value}",
+                    new_count=self.risk_manager.open_order_count,
+                )
 
         logger.debug(
             "Order state transition",
