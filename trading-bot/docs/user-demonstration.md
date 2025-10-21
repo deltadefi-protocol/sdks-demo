@@ -15,10 +15,8 @@ A step-by-step guide for demonstrating the DeltaDeFi Trading Bot in a video walk
 4. [Customize Trading Parameters](#4-customize-trading-parameters)
 5. [Deploy Trading Bot Locally](#5-deploy-trading-bot-locally)
 6. [Monitor Bot Activity](#6-monitor-bot-activity)
-7. [Health Checks](#7-health-checks)
-8. [Database Verification](#8-database-verification)
-9. [Emergency Stop Demonstration](#9-emergency-stop-demonstration)
-10. [Cleanup](#10-cleanup)
+7. [Emergency Stop Demonstration](#7-emergency-stop-demonstration)
+8. [Cleanup](#8-cleanup)
 
 ---
 
