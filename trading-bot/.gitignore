@@ -129,3 +129,5 @@ trading_bot.db*
 *-key.*
 *.pem
 *.key
+
+.claude/
