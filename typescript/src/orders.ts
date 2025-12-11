@@ -1,8 +1,4 @@
-import {
-  ApiClient,
-  BuildPlaceOrderTransactionRequest,
-  PostOrderRequest,
-} from "@deltadefi-protocol/sdk";
+import { PostOrderRequest } from "@deltadefi-protocol/sdk";
 import { getApiClient } from ".";
 
 export const orders = async () => {
@@ -12,8 +8,8 @@ export const orders = async () => {
     symbol: "ADAUSDM",
     side: "sell",
     type: "limit",
-    quantity: 100,
-    price: 16,
+    quantity: 10,
+    price: 0.5,
   };
 
   const res = await apiClient.postOrder(orderRequest);
